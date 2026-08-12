@@ -101,7 +101,15 @@ export const startScraper = async (
   req: Request,
   res: Response
 ) => {
-  const { searchRequestId } = req.params;
+  const { searchRequestId: searchRequestIdParam } = req.params;
+const searchRequestId = Number(searchRequestIdParam);
+
+if (isNaN(searchRequestId)) {
+  return res.status(400).json({
+    success: false,
+    message: "Invalid searchRequestId",
+  });
+}
 
   try {
     // 1. Fetch search request with category + location
