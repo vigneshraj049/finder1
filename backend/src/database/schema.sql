@@ -135,12 +135,14 @@ CREATE TABLE social_contents (
     platform VARCHAR(50) NOT NULL DEFAULT 'INSTAGRAM',
 
     content_type VARCHAR(50),
+    media_type VARCHAR(20) NOT NULL DEFAULT 'post',
     
     content_url TEXT NOT NULL,
 
     caption TEXT,
 
     media_url TEXT,
+    video_url TEXT,
 
     published_at TIMESTAMPTZ,
 

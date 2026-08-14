@@ -10,6 +10,26 @@ import scraperRoutes from "./routes/scraper.routes";
 import resultsRoutes from "./routes/results.routes";
 import scoringRoutes from "./routes/scoring.routes";
 
+const ensureSchemaColumns = async () => {
+  try {
+    await pool.query(`
+      ALTER TABLE social_contents
+        ADD COLUMN IF NOT EXISTS media_type VARCHAR(20) NOT NULL DEFAULT 'post',
+        ADD COLUMN IF NOT EXISTS video_url TEXT;
+    `);
+
+    await pool.query(`
+      ALTER TABLE businesses
+        ADD COLUMN IF NOT EXISTS instagram_profile_url TEXT,
+        ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ;
+    `);
+
+    console.log("Database schema check complete for business and social content columns.");
+  } catch (error) {
+    console.error("Unable to ensure required database schema columns:", error);
+  }
+};
+
 dotenv.config();
 
 const app = express();
@@ -51,6 +71,8 @@ app.get("/api/health", async (req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
+
+ensureSchemaColumns();
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);

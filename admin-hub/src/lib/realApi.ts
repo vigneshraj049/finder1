@@ -28,6 +28,18 @@ export interface RealPost {
   price_text: string | null;
 }
 
+export interface RealMediaItem {
+  id: number;
+  media_type: "post" | "reel" | string;
+  content_type: "image" | "carousel" | "video" | string;
+  content_url: string;
+  media_url?: string | null;
+  video_url?: string | null;
+  caption?: string | null;
+  likes_count?: number;
+  published_at?: string | null;
+}
+
 export interface RealProperty {
   id: number;
   property_title: string | null;
@@ -39,6 +51,20 @@ export interface RealProperty {
   longitude: number | null;
   ai_score: number | null;
   ai_summary: string | null;
+  business_name?: string | null;
+  instagram_username?: string | null;
+  instagram_profile_url?: string | null;
+  contact_phone?: string | null;
+  contact_email?: string | null;
+  contactNumber?: string | null;
+  contactEmail?: string | null;
+  media_count?: number;
+  reels_count?: number;
+  images_count?: number;
+  thumbnail_url?: string | null;
+  video_url?: string | null;
+  reels?: string[];
+  media_items?: RealMediaItem[];
   created_at: string;
 }
 
@@ -86,9 +112,20 @@ export const scoreRealProperties = (searchRequestId: number) =>
   });
 
 export const getRealPropertyResults = (searchRequestId: number) =>
-  fetch(`${API_BASE}/results/properties/${searchRequestId}`).then((res) =>
-    handle<RealProperty[]>(res)
-  );
+  fetch(`${API_BASE}/results/properties/${searchRequestId}`)
+    .then(async (res) => {
+      if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+
+      const json = await res.json();
+
+      return (json.data ?? []).map((item: RealProperty) => ({
+        ...item,
+        contact_phone: item.contact_phone ?? item.contactNumber ?? "",
+        contact_email: item.contact_email ?? item.contactEmail ?? "",
+        contactNumber: item.contactNumber ?? item.contact_phone ?? "",
+        contactEmail: item.contactEmail ?? item.contact_email ?? "",
+      }));
+    });
 
 export const getRealResults = (searchRequestId: number) =>
   fetch(`${API_BASE}/results/${searchRequestId}`).then((res) =>
