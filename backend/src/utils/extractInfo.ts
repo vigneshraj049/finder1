@@ -51,9 +51,9 @@ export const extractEmail = (text: string): string | null => {
   const parts = email.split("@");
   if (parts.length !== 2) return null;
   const domain = parts[1];
-  if (!domain || !domain.includes(".")) return null;
+  if (!domain || !domain?.includes(".")) return null;
   // Ignore if domain looks like a social platform handle
-  if (domain.startsWith("gmail") || domain.startsWith("yahoo") || domain.startsWith("outlook") || domain.includes(".")) {
+  if (domain?.startsWith("gmail") || domain?.startsWith("yahoo") || domain?.startsWith("outlook") || domain?.includes(".")) {
     return email;
   }
 
