@@ -50,9 +50,10 @@ export const extractEmail = (text: string): string | null => {
   // Real emails must have a dot in domain part
   const parts = email.split("@");
   if (parts.length !== 2) return null;
-  if (!parts[1].includes(".")) return null;
+  const domain = parts[1];
+  if (!domain || !domain.includes(".")) return null;
   // Ignore if domain looks like a social platform handle
-  if (parts[1].startsWith("gmail") || parts[1].startsWith("yahoo") || parts[1].startsWith("outlook") || parts[1].includes(".")) {
+  if (domain.startsWith("gmail") || domain.startsWith("yahoo") || domain.startsWith("outlook") || domain.includes(".")) {
     return email;
   }
 
