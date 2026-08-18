@@ -95,7 +95,7 @@ export const extractEmailFromWebsite = async (url: string): Promise<string | nul
       }
 
       const parts = email.split("@");
-      if (parts.length === 2 && parts[1].includes(".")) {
+      if (parts.length === 2 && parts[1] && parts[1].includes(".")) {
         return email;
       }
     }
