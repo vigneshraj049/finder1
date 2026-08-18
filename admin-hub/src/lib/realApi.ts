@@ -127,6 +127,22 @@ export const getRealPropertyResults = (searchRequestId: number) =>
       }));
     });
 
+export const getAllRealProperties = () =>
+  fetch(`${API_BASE}/results/all-properties`)
+    .then(async (res) => {
+      if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+
+      const json = await res.json();
+
+      return (json.data ?? []).map((item: RealProperty) => ({
+        ...item,
+        contact_phone: item.contact_phone ?? item.contactNumber ?? "",
+        contact_email: item.contact_email ?? item.contactEmail ?? "",
+        contactNumber: item.contactNumber ?? item.contact_phone ?? "",
+        contactEmail: item.contactEmail ?? item.contact_email ?? "",
+      }));
+    });
+
 export const getRealResults = (searchRequestId: number) =>
   fetch(`${API_BASE}/results/${searchRequestId}`).then((res) =>
     handle<RealPost[]>(res)

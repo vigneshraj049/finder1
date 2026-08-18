@@ -3,6 +3,7 @@ import pool from "../config/database";
 import { runInstagramScraper, runReelScraper } from "../services/apify.service";
 import { performRegexExtraction, extractFromImageOCR, normalizeListingData } from "../services/gemini.service";
 import { findOrCreateBusiness } from "../services/business.service";
+import { extractEmailFromWebsite } from "../utils/extractInfo";
 
 const normalizeText = (text: string | null | undefined): string => {
   if (!text) return "";
@@ -165,6 +166,18 @@ export const startScraper = async (
           continue;
         }
 
+        // Ignore posts older than 60 days
+        if (item.timestamp) {
+          const postDate = new Date(item.timestamp);
+          const sixtyDaysAgo = new Date();
+          sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+          
+          if (postDate < sixtyDaysAgo) {
+            console.log(`[Date Filter] Skipping post because it is older than 60 days (${item.timestamp})`);
+            continue;
+          }
+        }
+
         // 1. RAW SCRAPER DATA & DATA VALIDATION
         const rawCaption = item.caption || "";
         const regexData = performRegexExtraction(rawCaption);
@@ -174,13 +187,16 @@ export const startScraper = async (
           phone: regexData.phone,
           email: regexData.email,
           budget: regexData.budget,
+          ocr_address: "NA",
         };
 
         // Check which important fields are missing
         const missingFields = [];
-        if (mergedData.phone === "NA") missingFields.push("phone number");
-        if (mergedData.email === "NA") missingFields.push("email address");
-        if (mergedData.budget === "NA") missingFields.push("price or budget");
+        if (mergedData.phone === "NA") missingFields.push("contactPhone");
+        if (mergedData.email === "NA") missingFields.push("contactEmail");
+        if (mergedData.budget === "NA") missingFields.push("budgetText");
+        // Always try to extract address from image since regex doesn't handle it
+        missingFields.push("address");
         
         // 2 & 3. IMAGE ANALYSIS & VIDEO THUMBNAIL FALLBACK
         // If an image/thumbnail exists and important fields are missing, perform Vision OCR
@@ -192,6 +208,20 @@ export const startScraper = async (
           if (ocrData.contactPhone && ocrData.contactPhone !== "NA" && mergedData.phone === "NA") mergedData.phone = ocrData.contactPhone;
           if (ocrData.contactEmail && ocrData.contactEmail !== "NA" && mergedData.email === "NA") mergedData.email = ocrData.contactEmail;
           if (ocrData.budgetText && ocrData.budgetText !== "NA" && mergedData.budget === "NA") mergedData.budget = ocrData.budgetText;
+          if (ocrData.address && ocrData.address !== "NA") mergedData.ocr_address = ocrData.address;
+        }
+
+        // 3.5 WEBSITE EMAIL EXTRACTION FALLBACK
+        if (mergedData.email === "NA") {
+          const externalUrl = item.externalUrl || item.owner?.external_url || item.ownerExternalUrl || item.author?.externalUrl || item.biography_with_entities?.entities?.[0]?.url;
+          if (externalUrl && !externalUrl.includes("instagram.com")) {
+            console.log(`[Website Scraping] Email missing for ${item.ownerUsername}, checking website: ${externalUrl}`);
+            const websiteEmail = await extractEmailFromWebsite(externalUrl);
+            if (websiteEmail) {
+              mergedData.email = websiteEmail;
+              console.log(`[Website Scraping] Found email: ${websiteEmail}`);
+            }
+          }
         }
 
         // 4. FINAL LLM NORMALIZATION
@@ -219,18 +249,17 @@ export const startScraper = async (
           address: validAddress,
         });
 
-        // Smart Combination Matching: Check existing properties in this search request
+        // Smart Combination Matching: Check existing properties globally
         const existingProperties = await pool.query(
           `SELECT p.id, p.property_title, p.description, p.address, p.budget, p.business_id, b.phone
            FROM properties p
            JOIN businesses b ON p.business_id = b.id
-           WHERE p.search_request_id = $1
-             AND (
-               p.business_id = $2
-               OR ($3::varchar IS NOT NULL AND b.phone = $3)
+           WHERE (
+               p.business_id = $1
+               OR ($2::varchar IS NOT NULL AND b.phone = $2)
              )
            ORDER BY p.created_at DESC`,
-          [searchRequestId, businessId, validPhone]
+          [businessId, validPhone]
         );
 
         let targetPropertyId: number | null = null;
@@ -271,13 +300,14 @@ export const startScraper = async (
             updatedTitle !== matchedProperty.property_title ||
             updatedDesc !== matchedProperty.description ||
             updatedAddress !== matchedProperty.address ||
-            updatedBudget !== matchedProperty.budget
+            updatedBudget !== matchedProperty.budget ||
+            true // Always update to move the property into the latest search results
           ) {
             await pool.query(
               `UPDATE properties
-               SET property_title = $1, description = $2, address = $3, budget = $4
-               WHERE id = $5`,
-              [updatedTitle, updatedDesc, updatedAddress, updatedBudget, targetPropertyId]
+               SET property_title = $1, description = $2, address = $3, budget = $4, search_request_id = $5
+               WHERE id = $6`,
+              [updatedTitle, updatedDesc, updatedAddress, updatedBudget, searchRequestId, targetPropertyId]
             );
           }
         } else {

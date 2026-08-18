@@ -15,7 +15,8 @@ import {
 
 const items = [
   { title: "Dashboard", url: "/admin", icon: LayoutDashboard, exact: true },
-  { title: "Listings", url: "/admin/listings", icon: List, exact: false },
+  { title: "All Listings", url: "/admin/all-listings", icon: List, exact: false },
+  { title: "Search Results", url: "/admin/listings", icon: List, exact: false },
   { title: "Finder", url: "/admin/settings", icon: Settings, exact: false },
 ] as const;
 

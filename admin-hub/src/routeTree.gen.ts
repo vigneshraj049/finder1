@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as AdminAllListingsRouteImport } from './routes/admin.all-listings'
 import { Route as AdminListingsRouteImport } from './routes/admin.listings'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
 import { Route as PostsPostIdRouteImport } from './routes/posts.$postId'
@@ -29,6 +30,11 @@ const AdminRoute = AdminRouteImport.update({
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminAllListingsRoute = AdminAllListingsRouteImport.update({
+  id: '/all-listings',
+  path: '/all-listings',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminListingsRoute = AdminListingsRouteImport.update({
@@ -50,6 +56,7 @@ const PostsPostIdRoute = PostsPostIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
+  '/admin/all-listings': typeof AdminAllListingsRoute
   '/admin/listings': typeof AdminListingsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/posts/$postId': typeof PostsPostIdRoute
@@ -57,6 +64,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin/all-listings': typeof AdminAllListingsRoute
   '/admin/listings': typeof AdminListingsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/posts/$postId': typeof PostsPostIdRoute
@@ -66,6 +74,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
+  '/admin/all-listings': typeof AdminAllListingsRoute
   '/admin/listings': typeof AdminListingsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/posts/$postId': typeof PostsPostIdRoute
@@ -76,16 +85,24 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/admin/all-listings'
     | '/admin/listings'
     | '/admin/settings'
     | '/posts/$postId'
     | '/admin/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/admin/listings' | '/admin/settings' | '/posts/$postId' | '/admin'
+  to:
+    | '/'
+    | '/admin/all-listings'
+    | '/admin/listings'
+    | '/admin/settings'
+    | '/posts/$postId'
+    | '/admin'
   id:
     | '__root__'
     | '/'
     | '/admin'
+    | '/admin/all-listings'
     | '/admin/listings'
     | '/admin/settings'
     | '/posts/$postId'
@@ -121,6 +138,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/all-listings': {
+      id: '/admin/all-listings'
+      path: '/all-listings'
+      fullPath: '/admin/all-listings'
+      preLoaderRoute: typeof AdminAllListingsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/listings': {
       id: '/admin/listings'
       path: '/listings'
@@ -146,12 +170,14 @@ declare module '@tanstack/react-router' {
 }
 
 interface AdminRouteChildren {
+  AdminAllListingsRoute: typeof AdminAllListingsRoute
   AdminListingsRoute: typeof AdminListingsRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminAllListingsRoute: AdminAllListingsRoute,
   AdminListingsRoute: AdminListingsRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminIndexRoute: AdminIndexRoute,
