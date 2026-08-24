@@ -62,14 +62,14 @@ export const extractAddressFromCaption = (caption: string): string | null => {
   }
   // Return the longest/most specific 📍 address found (skip short generic ones)
   if (pinCandidates.length > 0) {
-    return pinCandidates.sort((a, b) => b.length - a.length)[0];
+    return pinCandidates.sort((a, b) => b.length - a.length)[0] || null;
   }
 
 
   // 2. Look for "Address:" or "Location:" label
   for (const line of lines) {
     const match = line.match(/(?:Address|Location)\s*[:\-]\s*(.+)/i);
-    if (match && match[1].trim().length > 5) return match[1].trim();
+    if (match && match[1] && match[1].trim().length > 5) return match[1].trim();
   }
 
   // 3. Look for lines containing Indian address keywords + city name
