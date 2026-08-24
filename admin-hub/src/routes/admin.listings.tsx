@@ -184,8 +184,20 @@ function AdminListings() {
                       <TableRow key={property.id} className="hover:bg-muted/30 transition-colors">
                         {/* Title & Business Name */}
                         <TableCell className="font-medium align-top py-3.5">
-                          <div className="font-semibold text-foreground leading-snug">
+                          <div className="font-semibold text-foreground leading-snug flex flex-wrap items-center gap-1.5">
                             {truncate(property.property_title ?? "No title", 60)}
+                            {property.listing_type && (
+                              <Badge 
+                                className={
+                                  property.listing_type === "Rent"
+                                    ? "bg-violet-600/15 text-violet-700 dark:text-violet-300 border-violet-500/30 text-[10px] px-1.5 py-0.5 font-semibold shrink-0"
+                                    : "bg-blue-600/15 text-blue-700 dark:text-blue-300 border-blue-500/30 text-[10px] px-1.5 py-0.5 font-semibold shrink-0"
+                                }
+                                variant="outline"
+                              >
+                                {property.listing_type === "Rent" ? "For Rent" : "For Sale"}
+                              </Badge>
+                            )}
                           </div>
                           {property.business_name && (
                             <div className="mt-2 flex flex-col gap-1 text-xs text-muted-foreground font-medium">

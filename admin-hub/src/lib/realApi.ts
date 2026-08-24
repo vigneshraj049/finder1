@@ -66,6 +66,7 @@ export interface RealProperty {
   reels?: string[];
   media_items?: RealMediaItem[];
   created_at: string;
+  listing_type?: string | null;
 }
 
 async function handle<T>(res: Response): Promise<T> {

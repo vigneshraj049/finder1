@@ -357,9 +357,9 @@ export const startScraper = async (
           ) {
             await pool.query(
               `UPDATE properties
-               SET property_title = $1, description = $2, address = $3, budget = $4, search_request_id = $5
-               WHERE id = $6`,
-              [updatedTitle, updatedDesc, updatedAddress, updatedBudget, searchRequestId, targetPropertyId]
+               SET property_title = $1, description = $2, address = $3, budget = $4, search_request_id = $5, listing_type = $6
+               WHERE id = $7`,
+              [updatedTitle, updatedDesc, updatedAddress, updatedBudget, searchRequestId, extracted.listingType || 'Sale', targetPropertyId]
             );
           }
         } else {
@@ -372,8 +372,8 @@ export const startScraper = async (
 
           const propertyResult = await pool.query(
             `INSERT INTO properties
-             (business_id, property_title, property_type, description, address, search_request_id, budget)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)
+             (business_id, property_title, property_type, description, address, search_request_id, budget, listing_type)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
              RETURNING id`,
             [
               businessId,
@@ -383,6 +383,7 @@ export const startScraper = async (
               validAddress,
               searchRequestId,
               validBudget,
+              extracted.listingType || 'Sale',
             ]
           );
 

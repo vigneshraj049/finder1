@@ -13,6 +13,7 @@ export interface ExtractedListing {
   contactPhone: string;
   contactEmail: string;
   budgetText: string;
+  listingType?: "Sale" | "Rent";
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -206,8 +207,9 @@ Instructions for other fields:
 - contactPhone: 10-digit Indian phone number without spaces or country code (or "NA"). Use the one provided in raw data if valid.
 - contactEmail: Email address (or "NA"). Use the one provided in raw data if valid.
 - budgetText: Price, rate per sq.ft, or budget mentioned (e.g. "₹549/- Sq.Ft", "₹45 Lakhs"). Support Tamil keywords like "சதுரடி 699" (translates to "₹699 per Sq.Ft") or "இலட்சம்" (Lakhs). Output in a normalized clean format (e.g. "₹699 per Sq.Ft" or "₹45 Lakhs").
+- listingType: Classify whether the property is for Sale or for Rent. If the text mentions rent, rental, lease, leasehold, roommate, "வாடகை", "வாடகைக்கு", "குத்தகை", output "Rent". Otherwise, default to "Sale".
 
-Return valid JSON with keys: title, description, city, local_area, contactPhone, contactEmail, budgetText.`;
+Return valid JSON with keys: title, description, city, local_area, contactPhone, contactEmail, budgetText, listingType.`;
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${geminiApiKey}`;
 
@@ -289,6 +291,7 @@ Return valid JSON with keys: title, description, city, local_area, contactPhone,
         contactPhone: phone && phone !== "NA" ? phone : "NA",
         contactEmail: parsed.contactEmail && parsed.contactEmail !== "NA" ? parsed.contactEmail : fallbackEmail,
         budgetText: parsed.budgetText && parsed.budgetText !== "NA" ? parsed.budgetText : fallbackBudget,
+        listingType: (parsed.listingType === "Rent" || parsed.listingType === "Sale") ? parsed.listingType : "Sale",
       };
     } catch (error: any) {
       console.error(`Gemini normalization attempt ${attempt} failed:`, error?.message || error);
@@ -304,5 +307,6 @@ Return valid JSON with keys: title, description, city, local_area, contactPhone,
     contactPhone: mergedData.rawPhone || "NA",
     contactEmail: mergedData.rawEmail || "NA",
     budgetText: mergedData.rawBudget || "NA",
+    listingType: /rent|lease|வாடகை|வாடகைக்கு|குத்தகை/i.test(mergedData.rawCaption || "") ? "Rent" : "Sale",
   };
 };
