@@ -184,11 +184,13 @@ function AdminAllListings() {
                           )}
                         </TableCell>
 
-                        <TableCell className="align-top py-3.5 text-sm">
+                        <TableCell className="align-top py-3.5 text-sm max-w-[200px]">
                           {property.address ? (
                             <div className="flex items-start gap-1 text-foreground/90">
                               <MapPin className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
-                              <span className="line-clamp-2">{property.address}</span>
+                              <span className="break-words whitespace-normal">
+                                {property.address.replace(/[*_~`]/g, "").trim()}
+                              </span>
                             </div>
                           ) : (
                             <span className="text-muted-foreground font-medium text-xs">NA</span>

@@ -1,9 +1,9 @@
 import { Request, Response } from "express";
 import pool from "../config/database";
 import { runInstagramScraper, runReelScraper } from "../services/apify.service";
-import { performRegexExtraction, extractFromImageOCR, normalizeListingData } from "../services/gemini.service";
+import { performRegexExtraction, extractFromImageOCR, extractFromVideoOCR, normalizeListingData } from "../services/gemini.service";
 import { findOrCreateBusiness } from "../services/business.service";
-import { extractEmailFromWebsite } from "../utils/extractInfo";
+import { extractEmailFromWebsite, extractAddressFromCaption } from "../utils/extractInfo";
 
 const normalizeText = (text: string | null | undefined): string => {
   if (!text) return "";
@@ -15,6 +15,14 @@ const isSimilarAddress = (addr1: string | null | undefined, addr2: string | null
   const a = normalizeText(addr1);
   const b = normalizeText(addr2);
   if (!a || !b) return false;
+  
+  // Exact match always true
+  if (a === b) return true;
+  
+  // If one of the addresses is too short (like just "trichy"), don't merge them purely on substring 
+  // to avoid merging every property in the same city.
+  if (a.length < 12 || b.length < 12) return false;
+  
   return a.includes(b) || b.includes(a);
 };
 
@@ -166,14 +174,15 @@ export const startScraper = async (
           continue;
         }
 
-        // Ignore posts older than 60 days
+        // Ignore posts older than 60 days, but allow Reels to be up to 365 days old
         if (item.timestamp) {
           const postDate = new Date(item.timestamp);
-          const sixtyDaysAgo = new Date();
-          sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+          const maxAgeDays = item.media_type === "reel" ? 365 : 60;
+          const maxAgeLimit = new Date();
+          maxAgeLimit.setDate(maxAgeLimit.getDate() - maxAgeDays);
           
-          if (postDate < sixtyDaysAgo) {
-            console.log(`[Date Filter] Skipping post because it is older than 60 days (${item.timestamp})`);
+          if (postDate < maxAgeLimit) {
+            console.log(`[Date Filter] Skipping ${item.media_type} because it is older than ${maxAgeDays} days (${item.timestamp})`);
             continue;
           }
         }
@@ -181,52 +190,74 @@ export const startScraper = async (
         // 1. RAW SCRAPER DATA & DATA VALIDATION
         const rawCaption = item.caption || "";
         const regexData = performRegexExtraction(rawCaption);
+        // STEP 1A: Try to extract address from caption text directly (no AI needed)
+        const captionAddress = extractAddressFromCaption(rawCaption);
+        const firstLine = rawCaption.split("\n")[0]?.slice(0, 80) || "(empty)";
+        if (captionAddress) {
+          console.log(`[Caption Address ✅] @${item.ownerUsername} → "${captionAddress}"`);
+        } else {
+          console.log(`[Caption Address ❌] @${item.ownerUsername} → not found. Caption start: "${firstLine}"`);
+        }
         
-        let mergedData: any = {
-          caption: rawCaption,
-          phone: regexData.phone,
-          email: regexData.email,
-          budget: regexData.budget,
-          ocr_address: "NA",
+        const parallelData: any = {
+          rawCaption: rawCaption,
+          rawPhone: regexData.phone,
+          rawEmail: regexData.email,
+          rawBudget: regexData.budget,
+          rawAddress: captionAddress || "NA",
+          agent1_websiteData: null,
+          agent2_imageData: {},
+          agent3_videoData: {},
         };
 
         // Check which important fields are missing
         const missingFields = [];
-        if (mergedData.phone === "NA") missingFields.push("contactPhone");
-        if (mergedData.email === "NA") missingFields.push("contactEmail");
-        if (mergedData.budget === "NA") missingFields.push("budgetText");
+        if (parallelData.rawPhone === "NA") missingFields.push("contactPhone");
+        if (parallelData.rawEmail === "NA") missingFields.push("contactEmail");
+        if (parallelData.rawBudget === "NA") missingFields.push("budgetText");
         // Always try to extract address from image since regex doesn't handle it
         missingFields.push("address");
         
-        // 2 & 3. IMAGE ANALYSIS & VIDEO THUMBNAIL FALLBACK
-        // If an image/thumbnail exists and important fields are missing, perform Vision OCR
-        if (missingFields.length > 0 && item.media_url) {
-          console.log(`[OCR] Missing ${missingFields.join(", ")} for ${item.ownerUsername}, running Image OCR fallback...`);
-          const ocrData = await extractFromImageOCR(item.media_url, missingFields);
-          
-          // Merge the extracted information without overwriting existing valid scraper data
-          if (ocrData.contactPhone && ocrData.contactPhone !== "NA" && mergedData.phone === "NA") mergedData.phone = ocrData.contactPhone;
-          if (ocrData.contactEmail && ocrData.contactEmail !== "NA" && mergedData.email === "NA") mergedData.email = ocrData.contactEmail;
-          if (ocrData.budgetText && ocrData.budgetText !== "NA" && mergedData.budget === "NA") mergedData.budget = ocrData.budgetText;
-          if (ocrData.address && ocrData.address !== "NA") mergedData.ocr_address = ocrData.address;
-        }
-
-        // 3.5 WEBSITE EMAIL EXTRACTION FALLBACK
-        if (mergedData.email === "NA") {
+        if (missingFields.length > 0) {
           const externalUrl = item.externalUrl || item.owner?.external_url || item.ownerExternalUrl || item.author?.externalUrl || item.biography_with_entities?.entities?.[0]?.url;
-          if (externalUrl && !externalUrl.includes("instagram.com")) {
-            console.log(`[Website Scraping] Email missing for ${item.ownerUsername}, checking website: ${externalUrl}`);
-            const websiteEmail = await extractEmailFromWebsite(externalUrl);
-            if (websiteEmail) {
-              mergedData.email = websiteEmail;
-              console.log(`[Website Scraping] Found email: ${websiteEmail}`);
-            }
-          }
+          
+          // Define Agent 1: Website Email Scraper
+          const agent1Task = (async () => {
+             if (parallelData.rawEmail === "NA" && externalUrl && !externalUrl.includes("instagram.com")) {
+                return await extractEmailFromWebsite(externalUrl);
+             }
+             return null;
+          })();
+
+          // Define Agent 2: Image OCR
+          const agent2Task = (async () => {
+             if (!item.video_url && item.media_url) {
+                return await extractFromImageOCR(item.media_url, missingFields);
+             }
+             return {};
+          })();
+
+          // Define Agent 3: Video OCR (Processes the actual mp4 file using Gemini Video AI)
+          const agent3Task = (async () => {
+             if (item.video_url) {
+                console.log(`[Agent 3 Video AI] Processing Reel video for @${item.ownerUsername}...`);
+                return await extractFromVideoOCR(item.video_url, missingFields);
+             }
+             return {};
+          })();
+
+          // Execute all 3 agents IN PARALLEL
+          console.log(`[Parallel Agents] Running Agents 1 (Scraper), 2 (Image), 3 (Video) simultaneously for ${item.ownerUsername}...`);
+          const [agent1Result, agent2Result, agent3Result] = await Promise.allSettled([agent1Task, agent2Task, agent3Task]);
+
+          if (agent1Result.status === "fulfilled") parallelData.agent1_websiteData = agent1Result.value;
+          if (agent2Result.status === "fulfilled") parallelData.agent2_imageData = agent2Result.value;
+          if (agent3Result.status === "fulfilled") parallelData.agent3_videoData = agent3Result.value;
         }
 
-        // 4. FINAL LLM NORMALIZATION
-        // Pass combined scraper + image + video data to LLM to produce one normalized final property object
-        const extracted = await normalizeListingData(mergedData);
+        // FINAL LLM NORMALIZATION & MERGE
+        // Pass the entire parallel payload to LLM to produce one normalized final property object
+        const extracted = await normalizeListingData(parallelData);
         const instagramUsername = item.ownerUsername || item.username || item.owner?.username || "unknown";
         const safeBusinessName = item.ownerFullName || instagramUsername || "Instagram Business";
 
@@ -266,6 +297,15 @@ export const startScraper = async (
         let matchedProperty: any = null;
 
         for (const prop of existingProperties.rows) {
+          // Prevent merging if they have explicitly different budgets (e.g. 80 Lakhs vs 90 Lakhs)
+          let budgetConflict = false;
+          if (validBudget && prop.budget && validBudget !== "NA" && prop.budget !== "NA") {
+             const cleanB1 = normalizeText(validBudget);
+             const cleanB2 = normalizeText(prop.budget);
+             if (cleanB1 !== cleanB2) budgetConflict = true;
+          }
+          if (budgetConflict) continue;
+
           // 1. Address Match
           if (validAddress && prop.address && isSimilarAddress(validAddress, prop.address)) {
             targetPropertyId = prop.id;
@@ -289,11 +329,23 @@ export const startScraper = async (
         if (targetPropertyId && matchedProperty) {
           // Enrich existing property if current post has more complete details
           const updatedTitle =
-            (!matchedProperty.property_title || matchedProperty.property_title === "No title")
-              ? (validTitle || matchedProperty.property_title)
+            (validTitle && (!matchedProperty.property_title || matchedProperty.property_title === "No title" || validTitle.length > matchedProperty.property_title.length))
+              ? validTitle
               : matchedProperty.property_title;
-          const updatedDesc = !matchedProperty.description ? (validDescription || matchedProperty.description) : matchedProperty.description;
-          const updatedAddress = !matchedProperty.address ? (validAddress || matchedProperty.address) : matchedProperty.address;
+          
+          const updatedDesc = 
+            (validDescription && (!matchedProperty.description || validDescription.length > matchedProperty.description.length)) 
+              ? validDescription 
+              : matchedProperty.description;
+          
+          const updatedAddress = 
+            (validAddress && (!matchedProperty.address || validAddress.length > matchedProperty.address.length)) 
+              ? validAddress 
+              : matchedProperty.address;
+
+          // Log address decision so we can trace bugs
+          console.log(`[Merge @${item.ownerUsername}] validAddr="${validAddress}" | dbAddr="${matchedProperty.address}" | → saving="${updatedAddress}"`);
+              
           const updatedBudget = !matchedProperty.budget ? (validBudget || matchedProperty.budget) : matchedProperty.budget;
 
           if (
@@ -311,6 +363,8 @@ export const startScraper = async (
             );
           }
         } else {
+          console.log(`[New Property @${item.ownerUsername}] No match found → INSERT with address="${validAddress}"`);
+
           // Create a new Property listing
           const fallbackTitle = item.caption
             ? item.caption.trim().split("\n")[0].slice(0, 100)

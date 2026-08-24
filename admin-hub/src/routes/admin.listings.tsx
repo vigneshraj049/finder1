@@ -96,10 +96,6 @@ function AdminListings() {
 
   const results = (propertyQuery.data ?? []) as RealProperty[];
 
-  const searchIdDisplay = useMemo(
-    () => (searchRequestId ? `Search request #${searchRequestId}` : "No search request selected"),
-    [searchRequestId],
-  );
 
   const filteredMediaItems = useMemo(() => {
     if (!selectedProperty?.media_items) return [];
@@ -128,7 +124,7 @@ function AdminListings() {
       <Card className="shadow-card border-border/80">
         <CardHeader className="flex flex-row items-center justify-between gap-4 border-b border-border/50 pb-4">
           <div className="flex items-center gap-3">
-            <CardTitle className="text-base font-semibold">{searchIdDisplay}</CardTitle>
+            <CardTitle className="text-base font-semibold">Listings & Properties</CardTitle>
             {results.length > 0 && (
               <Badge variant="outline" className="font-normal text-xs bg-muted/40">
                 {results.length} Consolidated {results.length === 1 ? "Listing" : "Listings"}
@@ -224,11 +220,13 @@ function AdminListings() {
                         </TableCell>
 
                         {/* Address */}
-                        <TableCell className="align-top py-3.5 text-sm">
+                        <TableCell className="align-top py-3.5 text-sm max-w-[200px]">
                           {property.address ? (
                             <div className="flex items-start gap-1 text-foreground/90">
                               <MapPin className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
-                              <span className="line-clamp-2">{property.address}</span>
+                              <span className="break-words whitespace-normal">
+                                {property.address.replace(/[*_~`]/g, "").trim()}
+                              </span>
                             </div>
                           ) : (
                             <span className="text-muted-foreground font-medium text-xs">NA</span>
