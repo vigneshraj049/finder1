@@ -8,10 +8,11 @@ interface BusinessInfo {
   phone: string | null;
   email: string | null;
   address: string | null;
+  website?: string | null;
 }
 
 // Finds existing business by instagram_username, or creates a new one.
-// Updates phone/email/address if they were previously missing.
+// Updates phone/email/address/website if they were previously missing.
 export const findOrCreateBusiness = async (
   info: BusinessInfo
 ): Promise<number> => {
@@ -21,7 +22,7 @@ export const findOrCreateBusiness = async (
 
   // 1. Check if business already exists
   const existing = await pool.query(
-    `SELECT id, phone, email, address FROM businesses WHERE instagram_username = $1`,
+    `SELECT id, phone, email, address, website FROM businesses WHERE instagram_username = $1`,
     [normalizedUsername]
   );
 
@@ -32,17 +33,19 @@ export const findOrCreateBusiness = async (
     const updatedPhone = business.phone || info.phone;
     const updatedEmail = business.email || info.email;
     const updatedAddress = business.address || info.address;
+    const updatedWebsite = business.website || info.website;
 
     if (
       updatedPhone !== business.phone ||
       updatedEmail !== business.email ||
-      updatedAddress !== business.address
+      updatedAddress !== business.address ||
+      updatedWebsite !== business.website
     ) {
       await pool.query(
         `UPDATE businesses 
-         SET phone = $1, email = $2, address = $3, updated_at = NOW()
-         WHERE id = $4`,
-        [updatedPhone, updatedEmail, updatedAddress, business.id]
+         SET phone = $1, email = $2, address = $3, website = $4, updated_at = NOW()
+         WHERE id = $5`,
+        [updatedPhone, updatedEmail, updatedAddress, updatedWebsite, business.id]
       );
     }
 
@@ -52,8 +55,8 @@ export const findOrCreateBusiness = async (
   // 2. Create new business
   const result = await pool.query(
     `INSERT INTO businesses 
-     (business_name, phone, email, address, instagram_username, instagram_page_id, instagram_profile_url)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     (business_name, phone, email, address, instagram_username, instagram_page_id, instagram_profile_url, website)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      RETURNING id`,
     [
       normalizedBusinessName,
@@ -63,6 +66,7 @@ export const findOrCreateBusiness = async (
       normalizedUsername,
       info.instagramPageId,
       info.instagramProfileUrl,
+      info.website || null,
     ]
   );
 

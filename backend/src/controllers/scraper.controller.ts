@@ -3,7 +3,7 @@ import pool from "../config/database";
 import { runInstagramScraper, runReelScraper } from "../services/apify.service";
 import { performRegexExtraction, extractFromImageOCR, extractFromVideoOCR, normalizeListingData } from "../services/gemini.service";
 import { findOrCreateBusiness } from "../services/business.service";
-import { extractEmailFromWebsite, extractAddressFromCaption } from "../utils/extractInfo";
+import { extractEmailFromWebsite, extractAddressFromCaption, extractWebsite } from "../utils/extractInfo";
 
 const normalizeText = (text: string | null | undefined): string => {
   if (!text) return "";
@@ -268,6 +268,8 @@ export const startScraper = async (
         const validEmail = extracted.contactEmail !== "NA" ? extracted.contactEmail : null;
         const validBudget = extracted.budgetText !== "NA" ? extracted.budgetText : null;
 
+        const rawWebsite = extractWebsite(rawCaption);
+
         const businessId = await findOrCreateBusiness({
           instagramUsername,
           instagramPageId: item.ownerId || null,
@@ -278,6 +280,7 @@ export const startScraper = async (
           phone: validPhone,
           email: validEmail,
           address: validAddress,
+          website: rawWebsite,
         });
 
         // Smart Combination Matching: Check existing properties globally

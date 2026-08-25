@@ -315,7 +315,18 @@ function AdminListings() {
                                 {truncate(property.contact_email, 24)}
                               </a>
                             ) : null}
-                            {!property.contact_phone && (!property.contact_email || property.contact_email === "NA") && (
+                            {property.website && property.website !== "NA" && property.website !== "" ? (
+                              <a
+                                href={property.website.startsWith("http") ? property.website : `https://${property.website}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-1.5 text-blue-600 hover:text-blue-700 dark:text-blue-400 font-medium"
+                              >
+                                <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                                {truncate(property.website, 24)}
+                              </a>
+                            ) : null}
+                            {!property.contact_phone && (!property.contact_email || property.contact_email === "NA") && (!property.website || property.website === "NA" || property.website === "") && (
                               <span className="text-muted-foreground font-medium">NA</span>
                             )}
                           </div>

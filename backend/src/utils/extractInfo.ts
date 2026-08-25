@@ -161,4 +161,42 @@ export const extractEmailFromWebsite = async (url: string): Promise<string | nul
     console.error(`Failed to extract email from website ${url}:`, error.message);
     return null;
   }
+};
+
+// Extract business websites from caption
+export const extractWebsite = (text: string): string | null => {
+  if (!text) return null;
+
+  // Match domain names like vsjplotstrichy.com, www.site.co.in, http(s)://site.com
+  const websiteRegex = /(?:https?:\/\/)?(?:www\.)?([a-zA-Z0-9-]+\.[a-zA-Z]{2,})(?:\/[^\s]*)?/gi;
+  let match;
+  while ((match = websiteRegex.exec(text)) !== null) {
+    const url = match[0].trim();
+    const domain = match[1].toLowerCase();
+
+    // Skip if it contains '@' (part of an email)
+    const lineIndex = text.lastIndexOf('\n', match.index);
+    const line = text.slice(lineIndex === -1 ? 0 : lineIndex, text.indexOf('\n', match.index) === -1 ? text.length : text.indexOf('\n', match.index));
+    if (line.includes('@' + domain) || line.includes('@')) {
+      continue;
+    }
+
+    // Skip common social media platforms and false positives like sq.ft / sqft
+    if (
+      domain.includes("instagram.com") ||
+      domain.includes("facebook.com") ||
+      domain.includes("youtube.com") ||
+      domain.includes("twitter.com") ||
+      domain.includes("linkedin.com") ||
+      domain.includes("pinterest.com") ||
+      domain === "sq.ft" ||
+      domain.startsWith("sq.") ||
+      domain.endsWith(".ft")
+    ) {
+      continue;
+    }
+
+    return url;
+  }
+  return null;
 };
