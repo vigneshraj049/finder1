@@ -172,6 +172,7 @@ export const extractWebsite = (text: string): string | null => {
   let match;
   while ((match = websiteRegex.exec(text)) !== null) {
     const url = match[0].trim();
+    if (!match[1]) continue;
     const domain = match[1].toLowerCase();
 
     // Skip if it contains '@' (part of an email)
