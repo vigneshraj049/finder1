@@ -217,7 +217,15 @@ export const startScraper = async (
         if (parallelData.rawBudget === "NA") missingFields.push("budgetText");
         // Always try to extract address from image since regex doesn't handle it
         missingFields.push("address");
-        
+
+        // Requirement 1: If title/description are missing or empty or very short (< 15 chars),
+        // we ask OCR to gather them from the image/video.
+        const isCaptionShort = !rawCaption || rawCaption.trim().length < 15;
+        if (isCaptionShort) {
+          missingFields.push("title");
+          missingFields.push("description");
+        }
+
         if (missingFields.length > 0) {
           const externalUrl = item.externalUrl || item.owner?.external_url || item.ownerExternalUrl || item.author?.externalUrl || item.biography_with_entities?.entities?.[0]?.url;
           

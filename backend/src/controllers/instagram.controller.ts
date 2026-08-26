@@ -8,6 +8,7 @@ import { uploadBase64Image } from "../services/imagekit.service";
 import {
   buildCaption,
   createMediaContainer,
+  createCarouselContainer,
   publishMedia,
   PropertyForCaption,
 } from "../services/instagram.service";
@@ -22,8 +23,9 @@ export const publishPost = async (req: Request, res: Response) => {
     });
   }
 
-  // ── 1. Load property from DB ────────────────────────────────────────────────
+  // ── 1. Load property and associated original social contents from DB ────────
   let propertyRow: any;
+  let socialContentsRows: any[] = [];
   try {
     const checkRes = await pool.query(
       `SELECT
@@ -43,6 +45,13 @@ export const publishPost = async (req: Request, res: Response) => {
     }
 
     propertyRow = checkRes.rows[0];
+
+    // Load original scraped post images & URLs
+    const mediaRes = await pool.query(
+      `SELECT content_url, media_url, raw_data FROM social_contents WHERE property_id = $1 ORDER BY created_at ASC`,
+      [propertyId]
+    );
+    socialContentsRows = mediaRes.rows;
   } catch (err: any) {
     return res.status(500).json({ success: false, message: "Database error while loading property.", error: err.message });
   }
@@ -55,7 +64,30 @@ export const publishPost = async (req: Request, res: Response) => {
     });
   }
 
-  // ── 2. Upload image to ImageKit FIRST (before touching status) ───────────────
+  // Extract original post URLs and display images
+  const postUrls = socialContentsRows.map((r: any) => r.content_url).filter(Boolean);
+  const originalImages: string[] = [];
+
+  for (const row of socialContentsRows) {
+    if (row.media_url && !originalImages.includes(row.media_url)) {
+      originalImages.push(row.media_url);
+    }
+    try {
+      const raw = typeof row.raw_data === 'string' ? JSON.parse(row.raw_data) : row.raw_data;
+      if (raw && Array.isArray(raw.childPosts)) {
+        for (const child of raw.childPosts) {
+          const childUrl = child.displayUrl || child.display_url || child.media_url;
+          if (childUrl && !originalImages.includes(childUrl)) {
+            originalImages.push(childUrl);
+          }
+        }
+      }
+    } catch (e) {
+      // Ignore JSON parse errors
+    }
+  }
+
+  // ── 2. Upload generated flyer image to ImageKit FIRST ────────────────────────
   let publicImageUrl: string;
   const filename = `poster_${propertyId}_${Date.now()}.png`;
 
@@ -63,12 +95,14 @@ export const publishPost = async (req: Request, res: Response) => {
     publicImageUrl = await uploadBase64Image(imageBase64, filename);
   } catch (uploadErr: any) {
     console.error("[ImageKit] Upload failed:", uploadErr.message);
-    // Status intentionally NOT changed — upload failed before we even started
     return res.status(400).json({
       success: false,
       message: `Image upload to ImageKit failed: ${uploadErr.message}`,
     });
   }
+
+  // Create carousel URLs array: Generated Flyer goes first, followed by up to 4 original post images
+  const carouselImages = [publicImageUrl, ...originalImages.slice(0, 4)];
 
   // ── 3. Now mark as Publishing ────────────────────────────────────────────────
   await pool.query(
@@ -86,19 +120,33 @@ export const publishPost = async (req: Request, res: Response) => {
     return res.status(200).json({
       success: true,
       message: "Simulation completed successfully (not published to live Instagram).",
-      data: { status: "Simulated", postId: mockPostId, imageUrl: publicImageUrl },
+      data: { status: "Simulated", postId: mockPostId, imageUrls: carouselImages },
     });
   }
 
   // ── 5. Build caption ─────────────────────────────────────────────────────────
-  const caption = suppliedCaption?.trim()
-    ? suppliedCaption.trim()
-    : buildCaption(propertyRow as PropertyForCaption);
+  let caption = suppliedCaption?.trim();
+  if (!caption) {
+    caption = buildCaption(propertyRow as PropertyForCaption);
+    if (postUrls.length > 0) {
+      const shortcodes = postUrls.map((url: string) => {
+        const match = url.match(/\/p\/([a-zA-Z0-9_-]+)/);
+        return match ? match[1] : url;
+      });
+      caption += `\n\nFor more information check post: ${shortcodes.join(", ")}`;
+    }
+  }
 
-  // ── 6. Create Instagram media container ─────────────────────────────────────
+  // ── 6. Create Instagram media container (Carousel vs Single Image) ──────────
   let creationId: string;
   try {
-    creationId = await createMediaContainer(publicImageUrl, caption);
+    if (carouselImages.length > 1) {
+      console.log(`[Instagram] Creating carousel container with ${carouselImages.length} slides...`);
+      creationId = await createCarouselContainer(carouselImages, caption);
+    } else {
+      console.log(`[Instagram] Creating single image container...`);
+      creationId = await createMediaContainer(publicImageUrl, caption);
+    }
   } catch (containerErr: any) {
     console.error("[Instagram] Container creation failed:", containerErr.message);
     await pool.query(
@@ -143,7 +191,7 @@ export const publishPost = async (req: Request, res: Response) => {
     data: {
       status: "Published",
       postId: livePostId,
-      imageUrl: publicImageUrl,
+      imageUrls: carouselImages,
       caption,
     },
   });

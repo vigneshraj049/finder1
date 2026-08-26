@@ -49,11 +49,8 @@ export const buildCaption = (property: PropertyForCaption): string => {
   }
 
   if (property.description) {
-    // Trim to 200 chars so the caption stays readable
-    const desc = property.description.length > 200
-      ? property.description.slice(0, 197) + "..."
-      : property.description;
-    lines.push(`\n${desc}`);
+    // Show full description as it is (no truncation)
+    lines.push(`\n${property.description}`);
   }
 
   if (property.contact_phone) {
@@ -63,6 +60,77 @@ export const buildCaption = (property: PropertyForCaption): string => {
   lines.push("\n#RealEstate #Property #Trichy #HomeSale #LandForSale");
 
   return lines.join("\n");
+};
+
+/**
+ * Create a carousel (sidecar) container on Instagram.
+ *
+ * 1. Creates an item container for each image URL with is_carousel_item=true.
+ * 2. Creates a parent carousel container referencing all item container IDs.
+ *
+ * Returns the parent container ID.
+ */
+export const createCarouselContainer = async (
+  imageUrls: string[],
+  caption: string
+): Promise<string> => {
+  const accessToken  = process.env.META_ACCESS_TOKEN;
+  const businessId   = process.env.INSTAGRAM_BUSINESS_ID;
+  const graphVersion = process.env.META_GRAPH_API_VERSION || "v20.0";
+
+  if (!accessToken || !businessId) {
+    throw new Error(
+      "Instagram Graph API credentials are not configured. " +
+      "Ensure META_ACCESS_TOKEN and INSTAGRAM_BUSINESS_ID are set in .env"
+    );
+  }
+
+  // Step 1: Create a container for each image
+  const childIds: string[] = [];
+  for (let i = 0; i < imageUrls.length; i++) {
+    const url = imageUrls[i];
+    console.log(`[Instagram] Creating carousel item container ${i + 1}/${imageUrls.length}: ${url}`);
+
+    const res = await fetch(`https://graph.facebook.com/${graphVersion}/${businessId}/media`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        image_url: url,
+        is_carousel_item: true,
+        access_token: accessToken,
+      }),
+    });
+
+    const data: any = await res.json();
+    if (!res.ok || !data.id) {
+      const errDetail = JSON.stringify(data.error || data);
+      throw new Error(`Failed to create carousel item ${i + 1}. Meta response: ${errDetail}`);
+    }
+
+    childIds.push(data.id);
+  }
+
+  // Step 2: Create the parent carousel container
+  console.log(`[Instagram] Creating parent carousel container with items: ${childIds.join(", ")}`);
+  const parentRes = await fetch(`https://graph.facebook.com/${graphVersion}/${businessId}/media`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      media_type: "CAROUSEL",
+      children: childIds,
+      caption,
+      access_token: accessToken,
+    }),
+  });
+
+  const parentData: any = await parentRes.json();
+  if (!parentRes.ok || !parentData.id) {
+    const errDetail = JSON.stringify(parentData.error || parentData);
+    throw new Error(`Failed to create parent carousel container. Meta response: ${errDetail}`);
+  }
+
+  console.log(`[Instagram] Parent carousel container created successfully ID: ${parentData.id}`);
+  return String(parentData.id);
 };
 
 /**
