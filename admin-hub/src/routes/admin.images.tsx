@@ -148,12 +148,9 @@ function AdminImages() {
       const defaultStockPhoto = "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=800&h=800&q=80";
       setSelectedImage(defaultStockPhoto);
 
-      // Auto-generate caption
       const priceText = selectedProperty.budget ? `Price: ${selectedProperty.budget}` : "";
       const phoneText = selectedProperty.contact_phone ? `Contact: ${selectedProperty.contact_phone}` : "";
       const locText = selectedProperty.address ? `📍 Location: ${selectedProperty.address}` : "";
-      const instaTag = selectedProperty.instagram_username ? `@${selectedProperty.instagram_username}` : "";
-      
       const hashtags = `#realestate #property #homeforsale #housing #investment #scrapehouse ${selectedProperty.property_type ? `#${selectedProperty.property_type.toLowerCase().replace(/\s+/g, "")}` : ""}`;
       
       const defaultCaption = `${selectedProperty.property_title || "New Property Available!"}
@@ -163,7 +160,6 @@ ${selectedProperty.description || ""}
 ${priceText}
 ${locText}
 ${phoneText}
-${instaTag ? `Promoted by ${instaTag}` : ""}
 
 ${hashtags}`;
 
@@ -241,7 +237,6 @@ ${hashtags}`;
     const priceText = formValues.budget ? `Price: ${formValues.budget}` : "";
     const phoneText = formValues.phone ? `Contact: ${formValues.phone}` : "";
     const locText = formValues.address ? `📍 Location: ${formValues.address}` : "";
-    const instaTag = formValues.instagramUsername ? `@${formValues.instagramUsername}` : "";
     const hashtags = `#realestate #property #homeforsale #housing #investment #scrapehouse ${formValues.category ? `#${formValues.category.toLowerCase().replace(/\s+/g, "")}` : ""}`;
 
     const newCaption = `${formValues.title || "New Property Available!"}
@@ -251,7 +246,6 @@ ${formValues.description || ""}
 ${priceText}
 ${locText}
 ${phoneText}
-${instaTag ? `Promoted by ${instaTag}` : ""}
 
 ${hashtags}`;
 
