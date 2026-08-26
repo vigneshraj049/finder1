@@ -399,35 +399,38 @@ REAL ESTATE INFORMATION:
 ${instagramUsername ? `- Instagram: @${instagramUsername}` : ""}`;
 
   try {
-    if (!process.env.OPENAI_API_KEY) {
-      return res.status(500).json({ success: false, message: "OPENAI_API_KEY not configured in .env" });
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(500).json({ success: false, message: "GEMINI_API_KEY not configured in .env" });
     }
 
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-image" });
 
-    // DALL-E 3 generates a 1024x1792 vertical image (closest to Instagram portrait)
-    const response = await openai.images.generate({
-      model: "dall-e-3",
-      prompt: CREATIVE_DIRECTOR_PROMPT,
-      n: 1,
-      size: "1024x1792",
-      quality: "hd",
-      response_format: "b64_json",
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: CREATIVE_DIRECTOR_PROMPT }] }],
+      generationConfig: { responseModalities: ["IMAGE", "TEXT"] } as any,
     });
 
-    const b64 = response.data?.[0]?.b64_json;
-    if (!b64) {
-      return res.status(500).json({ success: false, message: "DALL-E 3 did not return an image." });
+    const candidate = result.response.candidates?.[0];
+    if (!candidate) {
+      return res.status(500).json({ success: false, message: "Gemini returned no candidates" });
     }
 
+    // Find image part in response
+    const imagePart = candidate.content?.parts?.find((p: any) => p.inlineData?.mimeType?.startsWith("image/"));
+    if (!imagePart || !(imagePart as any).inlineData) {
+      return res.status(500).json({ success: false, message: "Gemini did not return an image. The model may not support image generation on this API key tier." });
+    }
+
+    const { mimeType, data } = (imagePart as any).inlineData;
     return res.json({
       success: true,
-      dataUrl: `data:image/png;base64,${b64}`,
+      dataUrl: `data:${mimeType};base64,${data}`,
     });
   } catch (error: any) {
     return res.status(500).json({
       success: false,
-      message: "DALL-E 3 image generation failed",
+      message: "Gemini image generation failed",
       error: error.message,
     });
   }
