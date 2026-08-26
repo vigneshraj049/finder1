@@ -1,6 +1,8 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import path from "path";
+import fs from "fs";
 import pool from "./config/database";
 
 import categoryRoutes from "./routes/category.routes";
@@ -9,6 +11,7 @@ import searchRoutes from "./routes/search.routes";
 import scraperRoutes from "./routes/scraper.routes";
 import resultsRoutes from "./routes/results.routes";
 import scoringRoutes from "./routes/scoring.routes";
+import instagramRoutes from "./routes/instagram.routes";
 
 const ensureSchemaColumns = async () => {
   try {
@@ -24,7 +27,22 @@ const ensureSchemaColumns = async () => {
         ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ;
     `);
 
-    console.log("Database schema check complete for business and social content columns.");
+    await pool.query(`
+      ALTER TABLE properties
+        ADD COLUMN IF NOT EXISTS instagram_post_status VARCHAR(30) NOT NULL DEFAULT 'Not Posted',
+        ADD COLUMN IF NOT EXISTS instagram_post_id VARCHAR(255),
+        ADD COLUMN IF NOT EXISTS instagram_error_log TEXT,
+        ADD COLUMN IF NOT EXISTS instagram_draft_caption TEXT,
+        ADD COLUMN IF NOT EXISTS instagram_draft_image_url TEXT;
+    `);
+
+    // Ensure uploads directory exists
+    const uploadsDir = path.join(__dirname, "../uploads");
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+
+    console.log("Database schema check complete for properties and social content columns.");
   } catch (error) {
     console.error("Unable to ensure required database schema columns:", error);
   }
@@ -35,7 +53,7 @@ dotenv.config();
 const app = express();
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "50mb" })); // Support large base64 poster uploads
 
 // Routes
 app.use("/api/categories", categoryRoutes);
@@ -44,6 +62,8 @@ app.use("/api/search", searchRoutes);
 app.use("/api/scraper", scraperRoutes);
 app.use("/api/results", resultsRoutes);
 app.use("/api/scoring", scoringRoutes);
+app.use("/api/instagram", instagramRoutes);
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 app.get("/", (req, res) => {
   res.json({

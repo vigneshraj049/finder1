@@ -68,6 +68,11 @@ export interface RealProperty {
   created_at: string;
   listing_type?: string | null;
   website?: string | null;
+  instagram_post_status?: string | null;
+  instagram_post_id?: string | null;
+  instagram_error_log?: string | null;
+  instagram_draft_caption?: string | null;
+  instagram_draft_image_url?: string | null;
 }
 
 async function handle<T>(res: Response): Promise<T> {
@@ -149,3 +154,38 @@ export const getRealResults = (searchRequestId: number) =>
   fetch(`${API_BASE}/results/${searchRequestId}`).then((res) =>
     handle<RealPost[]>(res)
   );
+
+export const publishToInstagram = (
+  propertyId: number,
+  caption: string,
+  imageBase64: string,
+  simulate: boolean
+) =>
+  fetch(`${API_BASE}/instagram/publish`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ propertyId, caption, imageBase64, simulate }),
+  }).then(async (res) => {
+    const json = await res.json();
+    if (!res.ok) {
+      throw { status: res.status, configMissing: json.configMissing, ...json };
+    }
+    return json;
+  });
+
+export const saveInstagramDraft = (
+  propertyId: number,
+  caption: string,
+  imageBase64: string
+) =>
+  fetch(`${API_BASE}/instagram/draft`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ propertyId, caption, imageBase64 }),
+  }).then(async (res) => {
+    const json = await res.json();
+    if (!res.ok) {
+      throw { status: res.status, ...json };
+    }
+    return json;
+  });

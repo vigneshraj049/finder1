@@ -10,6 +10,8 @@ import {
   type Location,
   type ScrapedPost,
   type SearchRequest,
+  addMockPost,
+  removeMockPost,
 } from "./mockData";
 
 // In-memory stores so create/delete feel real in the UI until the API exists.
@@ -89,6 +91,20 @@ export async function getPosts({
 export async function deletePost(id: string): Promise<void> {
   await delay();
   postStore = postStore.filter((p) => p.id !== id);
+  removeMockPost(id);
+}
+
+export async function createPost(postData: Omit<ScrapedPost, "id" | "scrapedAt" | "likes">): Promise<ScrapedPost> {
+  await delay();
+  const newPost: ScrapedPost = {
+    ...postData,
+    id: `p-${Date.now()}`,
+    likes: Math.floor(Math.random() * 200),
+    scrapedAt: new Date().toISOString(),
+  };
+  postStore = [newPost, ...postStore];
+  addMockPost(newPost);
+  return newPost;
 }
 
 export async function getCategories(): Promise<Category[]> {

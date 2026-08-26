@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, List, Settings, ArrowLeft, Radar } from "lucide-react";
+import { LayoutDashboard, List, Settings, ArrowLeft, Radar, Image as ImageIcon } from "lucide-react";
 
 import {
   Sidebar,
@@ -17,6 +17,7 @@ const items = [
   { title: "Dashboard", url: "/admin", icon: LayoutDashboard, exact: true },
   { title: "All Listings", url: "/admin/all-listings", icon: List, exact: false },
   { title: "Search Results", url: "/admin/listings", icon: List, exact: false },
+  { title: "Images", url: "/admin/images", icon: ImageIcon, exact: false },
   { title: "Finder", url: "/admin/settings", icon: Settings, exact: false },
 ] as const;
 

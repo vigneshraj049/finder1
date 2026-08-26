@@ -75,7 +75,7 @@ function seededImage(i: number) {
   return `https://picsum.photos/seed/listing-${i}/160/160`;
 }
 
-export const posts: ScrapedPost[] = Array.from({ length: 84 }, (_, i) => {
+export let posts: ScrapedPost[] = Array.from({ length: 84 }, (_, i) => {
   const caption = captions[i % captions.length]!;
   return {
     id: `p${i + 1}`,
@@ -101,3 +101,11 @@ export const searchRequests: SearchRequest[] = Array.from({ length: 26 }, (_, i)
   status: statuses[i % statuses.length]!,
   createdAt: new Date(Date.UTC(2026, 7, 1 + (i % 11), 6 + (i % 14), (i * 13) % 60)).toISOString(),
 }));
+
+export function addMockPost(post: ScrapedPost) {
+  posts = [post, ...posts];
+}
+
+export function removeMockPost(id: string) {
+  posts = posts.filter((p) => p.id !== id);
+}

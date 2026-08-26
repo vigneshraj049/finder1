@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Film,
   Image as ImageIcon,
@@ -11,6 +11,7 @@ import {
   Sparkles,
   Layers,
   CheckCircle2,
+  Share2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,6 +34,8 @@ import {
 } from "@/components/ui/table";
 import { getRealPropertyResults, scoreRealProperties, RealProperty, RealMediaItem } from "@/lib/realApi";
 import { formatDate, truncate } from "@/lib/format";
+
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/listings")({
   head: () => ({
@@ -93,6 +96,23 @@ function AdminListings() {
   });
 
   const [scoringDisabled, setScoringDisabled] = useState(false);
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "Published":
+        return <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] py-0.5 px-1.5 font-bold uppercase shrink-0">Published</Badge>;
+      case "Simulated":
+        return <Badge className="bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30 text-[10px] py-0.5 px-1.5 font-bold uppercase shrink-0">Simulated</Badge>;
+      case "Failed":
+        return <Badge className="bg-destructive/15 text-destructive border-destructive/30 text-[10px] py-0.5 px-1.5 font-bold uppercase shrink-0">Failed</Badge>;
+      case "Publishing":
+        return <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 text-[10px] py-0.5 px-1.5 font-bold uppercase shrink-0">Publishing</Badge>;
+      case "Draft":
+        return <Badge className="bg-cyan-500/15 text-cyan-700 border-cyan-500/30 text-[10px] py-0.5 px-1.5 font-bold uppercase shrink-0">Draft</Badge>;
+      default:
+        return <Badge variant="outline" className="text-muted-foreground border-border/80 text-[10px] py-0.5 px-1.5 font-bold uppercase shrink-0">Not Posted</Badge>;
+    }
+  };
 
   const results = (propertyQuery.data ?? []) as RealProperty[];
 
@@ -172,6 +192,7 @@ function AdminListings() {
                     <TableHead className="w-[180px]">Photos & Reels</TableHead>
                     <TableHead className="w-[200px]">Contact Info</TableHead>
                     <TableHead className="text-right w-[110px]">Created</TableHead>
+                    <TableHead className="w-[140px] pl-6">Category</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -335,6 +356,25 @@ function AdminListings() {
                         {/* Created Date */}
                         <TableCell className="text-right text-xs text-muted-foreground align-top py-3.5 whitespace-nowrap">
                           {formatDate(property.created_at)}
+                        </TableCell>
+
+                        {/* Category & Post Button */}
+                        <TableCell className="align-top py-3.5 pl-6">
+                          <div className="flex flex-col gap-2">
+                            <div className="flex items-center gap-1.5">
+                              <Badge variant="secondary" className="text-[10px] font-semibold tracking-wide uppercase py-0.5 px-2 bg-primary/10 text-primary border-primary/20 w-fit shrink-0">
+                                {property.property_type || "Real Estate"}
+                              </Badge>
+                              {getStatusBadge(property.instagram_post_status || "Not Posted")}
+                            </div>
+                            
+                            <Button asChild size="sm" variant={property.instagram_post_status === "Published" ? "outline" : "default"} className="h-7 px-2.5 text-[11px] font-semibold gap-1 w-fit">
+                              <Link to="/admin/images" search={{ listingId: property.id }}>
+                                <Share2 className="h-3 w-3" />
+                                {property.instagram_post_status === "Published" ? "View Post" : "Create Post"}
+                              </Link>
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );

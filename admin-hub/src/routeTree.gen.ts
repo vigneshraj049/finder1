@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminAllListingsRouteImport } from './routes/admin.all-listings'
+import { Route as AdminImagesRouteImport } from './routes/admin.images'
 import { Route as AdminListingsRouteImport } from './routes/admin.listings'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
 import { Route as PostsPostIdRouteImport } from './routes/posts.$postId'
@@ -37,6 +38,11 @@ const AdminAllListingsRoute = AdminAllListingsRouteImport.update({
   path: '/all-listings',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminImagesRoute = AdminImagesRouteImport.update({
+  id: '/images',
+  path: '/images',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminListingsRoute = AdminListingsRouteImport.update({
   id: '/listings',
   path: '/listings',
@@ -57,6 +63,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/admin/all-listings': typeof AdminAllListingsRoute
+  '/admin/images': typeof AdminImagesRoute
   '/admin/listings': typeof AdminListingsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/posts/$postId': typeof PostsPostIdRoute
@@ -65,6 +72,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin/all-listings': typeof AdminAllListingsRoute
+  '/admin/images': typeof AdminImagesRoute
   '/admin/listings': typeof AdminListingsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/posts/$postId': typeof PostsPostIdRoute
@@ -75,6 +83,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/admin/all-listings': typeof AdminAllListingsRoute
+  '/admin/images': typeof AdminImagesRoute
   '/admin/listings': typeof AdminListingsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/posts/$postId': typeof PostsPostIdRoute
@@ -86,6 +95,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/admin/all-listings'
+    | '/admin/images'
     | '/admin/listings'
     | '/admin/settings'
     | '/posts/$postId'
@@ -94,6 +104,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/admin/all-listings'
+    | '/admin/images'
     | '/admin/listings'
     | '/admin/settings'
     | '/posts/$postId'
@@ -103,6 +114,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/admin/all-listings'
+    | '/admin/images'
     | '/admin/listings'
     | '/admin/settings'
     | '/posts/$postId'
@@ -145,6 +157,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAllListingsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/images': {
+      id: '/admin/images'
+      path: '/images'
+      fullPath: '/admin/images'
+      preLoaderRoute: typeof AdminImagesRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/listings': {
       id: '/admin/listings'
       path: '/listings'
@@ -171,6 +190,7 @@ declare module '@tanstack/react-router' {
 
 interface AdminRouteChildren {
   AdminAllListingsRoute: typeof AdminAllListingsRoute
+  AdminImagesRoute: typeof AdminImagesRoute
   AdminListingsRoute: typeof AdminListingsRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminIndexRoute: typeof AdminIndexRoute
@@ -178,6 +198,7 @@ interface AdminRouteChildren {
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminAllListingsRoute: AdminAllListingsRoute,
+  AdminImagesRoute: AdminImagesRoute,
   AdminListingsRoute: AdminListingsRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminIndexRoute: AdminIndexRoute,
