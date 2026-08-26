@@ -477,12 +477,6 @@ ${hashtags}`;
         ctx.font = "bold 34px sans-serif";
         ctx.textAlign = "right";
         ctx.fillText(`📞 CALL: ${formValues.phone}`, 1030, 1235);
-
-        if (formValues.instagramUsername) {
-          ctx.fillStyle = "#ffffff";
-          ctx.font = "24px sans-serif";
-          ctx.fillText(`@${formValues.instagramUsername}`, 1030, 1290);
-        }
       } else if (selectedTemplate === "dark_luxury") {
         // Dark theme background
         ctx.fillStyle = "#16161a";
@@ -551,10 +545,6 @@ ${hashtags}`;
         ctx.font = "24px sans-serif";
         ctx.textAlign = "right";
         ctx.fillText(`Promoted by: ${formValues.businessName}`, 1020, 1240);
-        if (formValues.instagramUsername) {
-          ctx.fillStyle = "#ffffff";
-          ctx.fillText(`@${formValues.instagramUsername}`, 1020, 1290);
-        }
 
       } else if (selectedTemplate === "bold_teal") {
         // High-energy bold teal gradient background
@@ -611,10 +601,6 @@ ${hashtags}`;
         ctx.font = "bold 24px sans-serif";
         ctx.textAlign = "right";
         ctx.fillText(formValues.businessName, 1000, 1230);
-        if (formValues.instagramUsername) {
-          ctx.fillStyle = "#115e59";
-          ctx.fillText(`@${formValues.instagramUsername}`, 1000, 1270);
-        }
 
       } else if (selectedTemplate === "warm_sunset") {
         // Sunset gradient
@@ -678,10 +664,6 @@ ${hashtags}`;
         ctx.font = "bold 24px sans-serif";
         ctx.textAlign = "right";
         ctx.fillText(formValues.businessName, 920, 1190);
-        if (formValues.instagramUsername) {
-          ctx.fillStyle = "#718096";
-          ctx.fillText(`@${formValues.instagramUsername}`, 920, 1225);
-        }
 
       } else {
         // Default Modern Light Minimalist Template
@@ -750,10 +732,6 @@ ${hashtags}`;
         ctx.font = "bold 26px sans-serif";
         ctx.textAlign = "right";
         ctx.fillText(formValues.businessName, 1020, 1220);
-        if (formValues.instagramUsername) {
-          ctx.fillStyle = "#3b82f6";
-          ctx.fillText(`@${formValues.instagramUsername}`, 1020, 1275);
-        }
       }
 
       // Convert Canvas to data URL
