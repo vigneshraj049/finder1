@@ -77,6 +77,282 @@ const TEMPLATES = [
   { id: "warm_sunset", name: "Warm Sunset", desc: "Friendly coral-amber marketing style" },
 ];
 
+interface FlyerFormValues {
+  title: string;
+  businessName: string;
+  description: string;
+  address: string;
+  budget: string;
+  phone: string;
+  instagramUsername: string;
+  category: string;
+  listingType: string;
+}
+
+const canvasWrapText = (
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  maxWidth: number,
+  lineHeight: number,
+  maxLines?: number
+) => {
+  const words = text.split(" ");
+  let line = "";
+  let currentY = y;
+  let lineCount = 0;
+  for (let n = 0; n < words.length; n++) {
+    const testLine = line + words[n] + " ";
+    if (ctx.measureText(testLine).width > maxWidth && n > 0) {
+      lineCount++;
+      if (maxLines && lineCount >= maxLines) {
+        ctx.fillText(line.trim() + "...", x, currentY);
+        return;
+      }
+      ctx.fillText(line, x, currentY);
+      line = words[n] + " ";
+      currentY += lineHeight;
+    } else {
+      line = testLine;
+    }
+  }
+  ctx.fillText(line, x, currentY);
+};
+
+const canvasDrawImageCover = (
+  ctx: CanvasRenderingContext2D,
+  img: HTMLImageElement,
+  x: number,
+  y: number,
+  w: number,
+  h: number
+) => {
+  const imgRatio = img.width / img.height;
+  const destRatio = w / h;
+  let sx = 0, sy = 0, sw = img.width, sh = img.height;
+  if (imgRatio > destRatio) {
+    sw = img.height * destRatio;
+    sx = (img.width - sw) / 2;
+  } else {
+    sh = img.width / destRatio;
+    sy = (img.height - sh) / 2;
+  }
+  ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
+};
+
+const extractFlyerHighlights = (description: string, title: string, designPlan?: any): string[] => {
+  if (designPlan?.highlights?.length > 0) return designPlan.highlights;
+  const text = `${title} ${description}`.toUpperCase();
+  const highlights: string[] = [];
+  const sqftMatch = text.match(/(\d[\d,]*)\s*(SQ\.?\s*FT|SQFT|சதுர\s*அடி)/i);
+  if (sqftMatch) highlights.push(`${sqftMatch[1]} SQ.FT`);
+  const facingMatch = text.match(/(NORTH|SOUTH|EAST|WEST)\s*FACING/i);
+  if (facingMatch) highlights.push(facingMatch[0].toUpperCase());
+  if (/LAND|PLOT|மனை/i.test(text)) highlights.push("LAND");
+  if (/VILLA|HOUSE|வீடு/i.test(text)) highlights.push("HOUSE");
+  if (/APARTMENT|FLAT/i.test(text)) highlights.push("APARTMENT");
+  return highlights.length > 0 ? highlights : ["PREMIUM PROPERTY"];
+};
+
+/** Image 2 style — dark green marketing flyer with photo, yellow headlines, white info card */
+const drawImage2MarketingFlyer = (
+  ctx: CanvasRenderingContext2D,
+  img: HTMLImageElement,
+  formValues: FlyerFormValues,
+  designPlan: any,
+  includeImage: boolean,
+  bgImg?: HTMLImageElement | null
+) => {
+  const cleanText = (str: string) => (str || "").replace(/\*\*/g, "").replace(/^"|"$/g, "").trim();
+
+  const theme = {
+    primaryBg: designPlan?.colors?.primaryBg || "#062f21",
+    cardBg: designPlan?.colors?.cardBg || "#ffffff",
+    textPrimary: designPlan?.colors?.textPrimary || "#ffffff",
+    textSecondary: designPlan?.colors?.textSecondary || "#ffe082",
+    accentColor: designPlan?.colors?.accentColor || "#facc15",
+    borderGold: designPlan?.colors?.borderGold || "#d4af37",
+  };
+
+  const highlights = extractFlyerHighlights(formValues.description, formValues.title, designPlan);
+  const sizeHighlight = highlights.find(h => /SQ\.?FT|SQFT|சதுர/i.test(h)) || highlights[0] || "PREMIUM PROPERTY";
+  const facingHighlight = highlights.find(h => /FACING|SOUTH|NORTH|EAST|WEST/i.test(h)) || "";
+  const typeHighlight = highlights.find(h => /LAND|PLOT|HOUSE|VILLA|APARTMENT|மனை/i.test(h)) || formValues.category.toUpperCase();
+  const subHeadline = facingHighlight
+    ? `${facingHighlight} ${typeHighlight}`.toUpperCase()
+    : typeHighlight.toUpperCase();
+  const listingLabel = `FOR ${formValues.listingType.toUpperCase()}`;
+
+  // Full background
+  ctx.fillStyle = theme.primaryBg;
+  ctx.fillRect(0, 0, 1080, 1350);
+
+  // ── HEADER (y: 0–185) ──
+  ctx.fillStyle = theme.primaryBg;
+  ctx.fillRect(0, 0, 1080, 185);
+
+  // Logo circle
+  ctx.fillStyle = theme.primaryBg;
+  ctx.beginPath();
+  ctx.arc(100, 95, 52, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = theme.borderGold;
+  ctx.lineWidth = 5;
+  ctx.stroke();
+  ctx.fillStyle = theme.borderGold;
+  ctx.font = "bold 18px sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("LOGO", 100, 102);
+
+  // Business name
+  const nameGrad = ctx.createLinearGradient(175, 0, 700, 0);
+  nameGrad.addColorStop(0, theme.textSecondary);
+  nameGrad.addColorStop(0.5, theme.borderGold);
+  nameGrad.addColorStop(1, theme.textSecondary);
+  ctx.fillStyle = nameGrad;
+  const bizName = (formValues.businessName || "FIND YOUR DREAM").toUpperCase();
+  ctx.font = bizName.length > 22 ? "bold 34px sans-serif" : "bold 42px sans-serif";
+  ctx.textAlign = "left";
+  ctx.fillText(bizName, 175, 88);
+
+  ctx.fillStyle = theme.textPrimary;
+  ctx.font = "bold 15px sans-serif";
+  ctx.fillText("— YOUR DREAM, OUR MISSION —", 175, 122);
+
+  // REAL ESTATE seal (top right)
+  ctx.fillStyle = theme.borderGold;
+  ctx.beginPath();
+  ctx.arc(970, 95, 48, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = theme.primaryBg;
+  ctx.font = "bold 13px sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("REAL", 970, 88);
+  ctx.fillText("ESTATE", 970, 106);
+
+  // Gold divider
+  ctx.strokeStyle = "rgba(212, 175, 55, 0.5)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(40, 175);
+  ctx.lineTo(1040, 175);
+  ctx.stroke();
+
+  // ── PROPERTY PHOTO (y: 195–730) ──
+  const photoX = 60, photoY = 195, photoW = 960, photoH = 535;
+  const centerImg = bgImg ? bgImg : img;
+
+  if (includeImage && centerImg && centerImg.complete && centerImg.naturalWidth > 0) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(photoX, photoY, photoW, photoH, 18);
+    ctx.clip();
+    canvasDrawImageCover(ctx, centerImg, photoX, photoY, photoW, photoH);
+    ctx.restore();
+  } else {
+    ctx.fillStyle = "#0a3d2b";
+    ctx.beginPath();
+    ctx.roundRect(photoX, photoY, photoW, photoH, 18);
+    ctx.fill();
+    ctx.fillStyle = "#4a7c59";
+    ctx.font = "bold 28px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("PROPERTY PHOTO", photoX + photoW / 2, photoY + photoH / 2);
+  }
+  ctx.strokeStyle = theme.borderGold;
+  ctx.lineWidth = 6;
+  ctx.beginPath();
+  ctx.roundRect(photoX, photoY, photoW, photoH, 18);
+  ctx.stroke();
+
+  // ── HEADLINES on green (y: 750–900) ──
+  ctx.fillStyle = theme.accentColor;
+  ctx.font = "bold 80px sans-serif";
+  ctx.textAlign = "left";
+  ctx.fillText(sizeHighlight.toUpperCase(), 70, 810);
+
+  ctx.fillStyle = theme.textPrimary;
+  ctx.font = "bold 42px sans-serif";
+  ctx.fillText(subHeadline, 70, 870);
+
+  // Yellow FOR SALE banner (pointed ends)
+  const bannerY = 895, bannerH = 58;
+  ctx.fillStyle = theme.accentColor;
+  ctx.beginPath();
+  ctx.moveTo(60, bannerY);
+  ctx.lineTo(340, bannerY);
+  ctx.lineTo(355, bannerY + bannerH / 2);
+  ctx.lineTo(340, bannerY + bannerH);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = "#000000";
+  ctx.font = "bold 26px sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText(listingLabel, 200, bannerY + 38);
+
+  // ── WHITE INFO CARD (y: 975–1185) ──
+  const cardX = 60, cardY = 975, cardW = 960, cardH = 210;
+  ctx.fillStyle = theme.cardBg;
+  ctx.beginPath();
+  ctx.roundRect(cardX, cardY, cardW, cardH, 16);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(212, 175, 55, 0.3)";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  const infoRows = [
+    { icon: "■", label: sizeHighlight.toUpperCase() },
+    ...(facingHighlight ? [{ icon: "☀", label: facingHighlight.toUpperCase() }] : []),
+    { icon: "📍", label: cleanText(formValues.address) || "Location" },
+    { icon: "🏗", label: "Ideal for Residential Construction" },
+  ].slice(0, 4);
+
+  infoRows.forEach((row, i) => {
+    const rowY = cardY + 52 + i * 42;
+    ctx.fillStyle = theme.primaryBg;
+    ctx.font = "bold 22px sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText(row.icon, cardX + 30, rowY);
+    ctx.fillStyle = "#1a1a1a";
+    ctx.font = "bold 24px sans-serif";
+    const label = row.label.length > 42 ? row.label.slice(0, 40) + "…" : row.label;
+    ctx.fillText(label, cardX + 65, rowY);
+  });
+
+  // ── FOOTER (y: 1210–1330) ──
+  ctx.fillStyle = "#000000";
+  ctx.beginPath();
+  ctx.roundRect(60, 1210, 960, 110, 12);
+  ctx.fill();
+
+  // Contact left
+  ctx.fillStyle = theme.accentColor;
+  ctx.font = "bold 22px sans-serif";
+  ctx.textAlign = "left";
+  ctx.fillText("📞", 85, 1265);
+  ctx.fillStyle = theme.textPrimary;
+  ctx.font = "bold 14px sans-serif";
+  ctx.fillText("CONTACT US", 120, 1248);
+  ctx.fillStyle = theme.accentColor;
+  ctx.font = "bold 38px sans-serif";
+  ctx.fillText(formValues.phone || "Call Now", 120, 1285);
+
+  // Instagram pill right
+  const igHandle = formValues.instagramUsername
+    ? `@${formValues.instagramUsername}`
+    : formValues.businessName;
+  const pillW = Math.min(igHandle.length * 14 + 40, 340);
+  ctx.fillStyle = theme.borderGold;
+  ctx.beginPath();
+  ctx.roundRect(1080 - 60 - pillW, 1245, pillW, 44, 22);
+  ctx.fill();
+  ctx.fillStyle = theme.primaryBg;
+  ctx.font = "bold 20px sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText(igHandle, 1080 - 60 - pillW / 2, 1274);
+};
+
 function AdminImages() {
   const { listingId } = Route.useSearch();
   const queryClient = useQueryClient();
@@ -94,8 +370,9 @@ function AdminImages() {
   });
 
   const [selectedImage, setSelectedImage] = useState<string>("https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=800&h=800&q=80");
-  const [selectedTemplate, setSelectedTemplate] = useState<string>("premium_flyer");
-  const [includeImage, setIncludeImage] = useState<boolean>(true);
+  const [hasListingMedia, setHasListingMedia] = useState<boolean>(true);
+  const [selectedTemplate, setSelectedTemplate] = useState<string>("full_ai_poster");
+  const includeImage = true;
   const [caption, setCaption] = useState<string>("");
   const [generatedPoster, setGeneratedPoster] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
@@ -104,6 +381,105 @@ function AdminImages() {
   const [isPreviewOpen, setIsPreviewOpen] = useState<boolean>(false);
   const [aiPrompt, setAiPrompt] = useState<string>("");
   const [isGeneratingAiImage, setIsGeneratingAiImage] = useState<boolean>(false);
+  const [referenceImage, setReferenceImage] = useState<string | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
+  const [designPlan, setDesignPlan] = useState<any>(null);
+  const [aiBackgroundUrl, setAiBackgroundUrl] = useState<string>("");
+  const [activePreviewSlide, setActivePreviewSlide] = useState<number>(2); // 0: Welcome Slide, 1: Original listing image, 2: Generated Flyer Poster
+  useEffect(() => {
+    if (aiBackgroundUrl && aiBackgroundUrl.startsWith("data:image") && designPlan) {
+      handleGeneratePoster();
+      setActivePreviewSlide(2); // Automatically display the generated flyer slide once rendered
+    }
+  }, [aiBackgroundUrl, designPlan]);
+
+  const handleAIAnalysis = async () => {
+    if (!selectedProperty) {
+      toast.error("No property data loaded to analyze.");
+      return;
+    }
+
+    setIsAnalyzing(true);
+    toast.loading("AI is analyzing listing data & style guidelines...", { id: "ai-analysis" });
+
+    try {
+      const listingTitle = selectedProperty.property_title || "";
+      const listingDesc = selectedProperty.description || "";
+      const listingAddress = selectedProperty.address || "";
+      const listingBudget = selectedProperty.budget || "";
+      const listingPhone = selectedProperty.contact_phone || "";
+      const listingCategory = selectedProperty.property_type || "Real Estate";
+      const listingType = selectedProperty.listing_type || "Sale";
+      const businessName = selectedProperty.business_name || "Find Your Dream";
+      const instagramUsername = selectedProperty.instagram_username || "";
+
+      // Populate form values with exact database details as source of truth
+      setFormValues({
+        title: listingTitle,
+        businessName: businessName,
+        description: listingDesc,
+        address: listingAddress,
+        budget: listingBudget,
+        phone: listingPhone,
+        instagramUsername: instagramUsername,
+        category: listingCategory,
+        listingType: listingType,
+      });
+
+      // Query the backend generatePoster endpoint to paint the design template
+      const res = await fetch("http://localhost:5000/api/instagram/generate-poster", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          category: listingCategory,
+          title: listingTitle,
+          address: listingAddress,
+          referenceImage: referenceImage || "",
+          businessName: businessName,
+          phone: listingPhone,
+          instagramUsername: instagramUsername,
+          budget: listingBudget,
+          listingType: listingType,
+          description: listingDesc,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!data.success || !data.dataUrl) {
+        throw new Error(data.message || "Failed to generate AI background design.");
+      }
+
+      setDesignPlan(data.designPlan);
+      if (data.visualPrompt) setAiPrompt(data.visualPrompt);
+      // Update aiBackgroundUrl to update the Live Poster Preview mockup backdrop
+      setAiBackgroundUrl(data.dataUrl);
+      setSelectedTemplate("full_ai_poster");
+
+      toast.success("AI Analysis Complete! Background visual updated in Live Preview.", { id: "ai-analysis" });
+    } catch (err: any) {
+      console.error(err);
+      toast.error(`AI Analysis failed: ${err.message || err}`, { id: "ai-analysis" });
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const handleReferenceImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const base64 = event.target?.result as string;
+        if (base64) {
+          setReferenceImage(base64);
+          setGeneratedPoster(""); // Clear generated poster
+          toast.success("Design reference uploaded! AI will analyze its layout and style.");
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   // Canvas ref for drawing the high-res poster
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -133,7 +509,7 @@ function AdminImages() {
     if (selectedProperty) {
       setFormValues({
         title: selectedProperty.property_title || "",
-        businessName: selectedProperty.business_name || "Instagram Business",
+        businessName: selectedProperty.business_name || "Find Your Dream",
         description: selectedProperty.description || "",
         address: selectedProperty.address || "",
         budget: selectedProperty.budget || "",
@@ -143,16 +519,26 @@ function AdminImages() {
         listingType: selectedProperty.listing_type || "Sale",
       });
 
-      // Default to a beautiful, clean modern house stock photo to avoid rendering scraped graphic flyers inside our premium template.
-      // The user can still choose to select the scraped flyer from the list below if they want.
+      // Try to find the first scraped listing image from the property media items or draft image url
+      const firstListingImage = selectedProperty.media_items?.find(
+        (m: any) => m.media_type !== "reel" && !m.video_url && m.media_url
+      )?.media_url || selectedProperty.thumbnail_url || selectedProperty.instagram_draft_image_url;
+
       const defaultStockPhoto = "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=800&h=800&q=80";
-      setSelectedImage(defaultStockPhoto);
+
+      let initialImageSrc = firstListingImage || defaultStockPhoto;
+      if (initialImageSrc && !initialImageSrc.startsWith("http")) {
+        const cleanPath = initialImageSrc.startsWith("/") ? initialImageSrc.slice(1) : initialImageSrc;
+        initialImageSrc = `http://localhost:5000/${cleanPath}`;
+      }
+      setHasListingMedia(!!firstListingImage);
+      setSelectedImage(initialImageSrc);
 
       const priceText = selectedProperty.budget ? `Price: ${selectedProperty.budget}` : "";
       const phoneText = selectedProperty.contact_phone ? `Contact: ${selectedProperty.contact_phone}` : "";
       const locText = selectedProperty.address ? `📍 Location: ${selectedProperty.address}` : "";
       const hashtags = `#realestate #property #homeforsale #housing #investment #scrapehouse ${selectedProperty.property_type ? `#${selectedProperty.property_type.toLowerCase().replace(/\s+/g, "")}` : ""}`;
-      
+
       const defaultCaption = `${selectedProperty.property_title || "New Property Available!"}
 
 ${selectedProperty.description || ""}
@@ -165,6 +551,8 @@ ${hashtags}`;
 
       setCaption(selectedProperty.instagram_draft_caption || defaultCaption);
       setGeneratedPoster(""); // Clear previous generated poster
+      setDesignPlan(null); // Clear previous design plan to prevent stale data overlay
+      setAiBackgroundUrl(""); // Clear previous AI background url
 
       // Pre-generate AI prompt
       const cat = selectedProperty.property_type || "Real Estate";
@@ -173,6 +561,14 @@ ${hashtags}`;
       setAiPrompt(`High-resolution, professional real estate architectural photography of a ${cat}, ${title}, located in ${loc}, bright sunset lighting, award-winning composition, commercial property marketing photo`);
     }
   }, [selectedProperty]);
+
+  // Auto-run AI Analysis if query parameter is set (for automated Visual QA testing)
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    if (searchParams.get("autoAnalyze") === "true" && selectedProperty && !designPlan && !isAnalyzing) {
+      handleAIAnalysis();
+    }
+  }, [selectedProperty, designPlan, isAnalyzing]);
 
   // Handle Input Changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -211,7 +607,7 @@ ${hashtags}`;
     try {
       const seed = Math.floor(Math.random() * 1000000);
       const url = `https://image.pollinations.ai/p/${encodeURIComponent(aiPrompt.trim())}?width=1080&height=1350&nologo=true&seed=${seed}&model=flux`;
-      
+
       // Preload image to verify it loads correctly
       const img = new Image();
       img.src = url;
@@ -268,215 +664,105 @@ ${hashtags}`;
       canvas.width = 1080;
       canvas.height = 1350;
       const ctx = canvas.getContext("2d");
-      
+
       if (!ctx) {
         throw new Error("Could not acquire 2D canvas context");
       }
 
+      // Proxy the listing image if it's a remote URL to bypass CORS and avoid tainted canvas issues
+      let imageSrc = selectedImage;
+      if (selectedImage && selectedImage.startsWith("http") && !selectedImage.includes("localhost") && !selectedImage.includes("127.0.0.1")) {
+        try {
+          const proxyRes = await fetch(`http://localhost:5000/api/instagram/proxy-image?url=${encodeURIComponent(selectedImage)}`);
+          const proxyData = await proxyRes.json();
+          if (proxyData.success && proxyData.dataUrl) {
+            imageSrc = proxyData.dataUrl;
+          }
+        } catch (e) {
+          console.warn("Failed to proxy image, drawing directly:", e);
+        }
+      }
+
       const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.src = selectedImage;
+      if (includeImage && imageSrc) {
+        img.crossOrigin = "anonymous";
+        img.src = imageSrc;
 
-      // Wrap in Promise to handle image loading
-      await new Promise<void>((resolve, reject) => {
-        img.onload = () => resolve();
-        img.onerror = () => {
-          console.warn("Failed to load image with CORS. Re-trying without CORS (fallback to color card on taint).");
-          // Re-attempt without CORS
-          const imgNoCORS = new Image();
-          imgNoCORS.src = selectedImage;
-          imgNoCORS.onload = () => {
-            img.width = imgNoCORS.width;
-            img.height = imgNoCORS.height;
-            // Substitute the tainted image source
-            resolve();
+        // Wrap in Promise to handle image loading
+        await new Promise<void>((resolve) => {
+          img.onload = () => resolve();
+          img.onerror = () => {
+            console.warn("Failed to load image with CORS. Re-trying without CORS.");
+            // Re-attempt without CORS
+            const imgNoCORS = new Image();
+            imgNoCORS.src = imageSrc;
+            imgNoCORS.onload = () => {
+              img.width = imgNoCORS.width;
+              img.height = imgNoCORS.height;
+              // Substitute the tainted image source
+              resolve();
+            };
+            imgNoCORS.onerror = () => {
+              console.warn("Failed to load image resource entirely. Skipping image overlay.");
+              resolve(); // Resolve to prevent crashing poster generation
+            };
           };
-          imgNoCORS.onerror = () => reject(new Error("Failed to load image resource"));
-        };
-      });
-
-      // 1. Draw Background & Layout based on Templates
-      if (selectedTemplate === "full_ai_poster") {
-        // Use Gemini Image Generation with the full Creative Director prompt
-        toast.loading("Gemini AI is designing your poster (30–60s)...", { id: "poster-gen" });
-
-        const geminiRes = await fetch("http://localhost:5000/api/instagram/generate-poster", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            businessName: formValues.businessName || "",
-            title: formValues.title || "",
-            category: formValues.category || "",
-            budget: formValues.budget || "",
-            address: formValues.address || "",
-            phone: formValues.phone || "",
-            description: formValues.description || "",
-            instagramUsername: formValues.instagramUsername || "",
-            listingType: formValues.listingType || "Sale",
-          }),
         });
+      }
 
-        const geminiData = await geminiRes.json();
+      // Image 2 style marketing flyer (AI Graphic Designer + Marketing Flyer templates)
+      if (selectedTemplate === "full_ai_poster" || selectedTemplate === "premium_flyer") {
+        let activeDesignPlan = designPlan;
+        let activeAiBackgroundUrl = aiBackgroundUrl;
 
-        if (!geminiData.success || !geminiData.dataUrl) {
-          throw new Error(geminiData.message || "Gemini poster generation failed. Please try again.");
+        if (!activeDesignPlan || (selectedTemplate === "full_ai_poster" && !activeAiBackgroundUrl)) {
+          toast.loading("AI is building your complete real estate poster...", { id: "poster-gen" });
+          const geminiRes = await fetch("http://localhost:5000/api/instagram/generate-poster", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              category: formValues.category || "",
+              title: formValues.title || "",
+              address: formValues.address || "",
+              referenceImage: referenceImage || "",
+              businessName: formValues.businessName || "",
+              phone: formValues.phone || "",
+              instagramUsername: formValues.instagramUsername || "",
+              budget: formValues.budget || "",
+              listingType: formValues.listingType || "",
+              description: formValues.description || "",
+            }),
+          });
+          const geminiData = await geminiRes.json();
+          if (geminiData.designPlan) {
+            activeDesignPlan = geminiData.designPlan;
+            setDesignPlan(geminiData.designPlan);
+          }
+          if (geminiData.visualPrompt) setAiPrompt(geminiData.visualPrompt);
+          if (geminiData.dataUrl) {
+            activeAiBackgroundUrl = geminiData.dataUrl;
+            setAiBackgroundUrl(geminiData.dataUrl);
+          }
         }
 
-        setGeneratedPoster(geminiData.dataUrl);
-        setIsPreviewOpen(true);
-        toast.success("AI Poster ready!", { id: "poster-gen" });
-        setIsGenerating(false);
-        return;
+        let bgImg: HTMLImageElement | null = null;
+        if (selectedTemplate === "full_ai_poster" && activeAiBackgroundUrl) {
+          bgImg = new Image();
+          bgImg.src = activeAiBackgroundUrl;
+          await new Promise<void>((resolve) => {
+            bgImg!.onload = () => resolve();
+            bgImg!.onerror = () => {
+              console.warn("Failed to load AI background image.");
+              resolve();
+            };
+          });
+        }
 
-      } else if (selectedTemplate === "premium_flyer") {
-        // 1. Premium Dark Blue/Navy Gradient Background
-        const bgGrad = ctx.createLinearGradient(0, 0, 1080, 1350);
-        bgGrad.addColorStop(0, "#050b1a");
-        bgGrad.addColorStop(0.5, "#0b152d");
-        bgGrad.addColorStop(1, "#030712");
-        ctx.fillStyle = bgGrad;
-        ctx.fillRect(0, 0, 1080, 1350);
-
-        // Gold Glowing Outer Border
-        ctx.strokeStyle = "#d4af37";
-        ctx.lineWidth = 10;
-        ctx.strokeRect(30, 30, 1020, 1290);
-
-        // Header Section
-        // Logo circle with Gold Crest ring
-        ctx.fillStyle = "#1e293b";
-        ctx.beginPath();
-        ctx.arc(110, 120, 55, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = "#d4af37";
-        ctx.lineWidth = 6;
-        ctx.stroke();
-
-        ctx.fillStyle = "#d4af37";
-        ctx.font = "bold 24px sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillText("LOGO", 110, 128);
-
-        // Gold Gradient for Business Name Title
-        const titleGrad = ctx.createLinearGradient(190, 0, 700, 0);
-        titleGrad.addColorStop(0, "#ffe082");
-        titleGrad.addColorStop(0.5, "#d4af37");
-        titleGrad.addColorStop(1, "#ffe082");
-        
-        ctx.fillStyle = titleGrad;
-        ctx.font = "black 46px sans-serif";
-        ctx.textAlign = "left";
-        ctx.fillText((formValues.businessName || "BUSINESS NAME").toUpperCase(), 190, 115);
-
-        ctx.fillStyle = "#a1a1aa";
-        ctx.font = "bold 20px sans-serif";
-        ctx.fillText("PREMIUM GATED COMMUNITY | QUALITY & TRUST", 190, 150);
-
-        // Header Divider
-        ctx.strokeStyle = "rgba(212, 175, 55, 0.4)";
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.moveTo(50, 195);
-        ctx.lineTo(1030, 195);
-        ctx.stroke();
-
-        // 2. Slanted Banner Box
-        ctx.fillStyle = "#0f172a";
-        ctx.beginPath();
-        ctx.moveTo(50, 215);
-        ctx.lineTo(1030, 215);
-        ctx.lineTo(980, 405);
-        ctx.lineTo(50, 405);
-        ctx.closePath();
-        ctx.fill();
-
-        ctx.strokeStyle = "rgba(212, 175, 55, 0.7)";
-        ctx.lineWidth = 4;
-        ctx.stroke();
-
-        ctx.fillStyle = "#ffffff";
-        ctx.font = "bold 32px sans-serif";
-        ctx.textAlign = "left";
-        ctx.fillText("WANT TO OWN A PLACE IN A PRIME LOCATION?", 85, 275);
-
-        // Yellow/Gold Price Badge (3D pill style)
-        const priceGrad = ctx.createLinearGradient(85, 0, 480, 0);
-        priceGrad.addColorStop(0, "#facc15");
-        priceGrad.addColorStop(1, "#eab308");
-        ctx.fillStyle = priceGrad;
-        ctx.beginPath();
-        ctx.roundRect(85, 310, 420, 70, 15);
-        ctx.fill();
-
-        ctx.fillStyle = "#7f1d1d"; // Dark red text
-        ctx.font = "black 34px sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillText(formValues.budget || "BEST PRICES", 295, 356);
-
-        // Location Info inside the banner
-        ctx.fillStyle = "#ffffff";
-        ctx.font = "bold 22px sans-serif";
-        ctx.textAlign = "left";
-        ctx.fillText(`📍 LOCATED IN PRIME NEIGHBORHOOD`, 540, 350);
-
-        // 3. Center Image Frame (Full Width with dual gold borders)
-        ctx.save();
-        ctx.beginPath();
-        ctx.roundRect(60, 445, 960, 520, 20);
-        ctx.clip();
-        ctx.drawImage(img, 60, 445, 960, 520);
-        ctx.restore();
-
-        ctx.strokeStyle = "#d4af37";
-        ctx.lineWidth = 6;
-        ctx.beginPath();
-        ctx.roundRect(60, 445, 960, 520, 20);
-        ctx.stroke();
-
-        // 4. Description Box (Stylized Card overlay)
-        ctx.fillStyle = "rgba(15, 23, 42, 0.75)";
-        ctx.beginPath();
-        ctx.roundRect(60, 990, 960, 160, 15);
-        ctx.fill();
-        ctx.strokeStyle = "rgba(212, 175, 55, 0.4)";
-        ctx.lineWidth = 3;
-        ctx.stroke();
-
-        ctx.fillStyle = "#f4f4f5";
-        ctx.font = "italic 26px sans-serif";
-        ctx.textAlign = "center";
-        wrapText(ctx, formValues.description || "", 540, 1040, 920, 36);
-
-        // Special Offer Banner
-        ctx.fillStyle = "#d4af37";
-        ctx.beginPath();
-        ctx.roundRect(50, 1070, 980, 80, 15);
-        ctx.fill();
-
-        ctx.fillStyle = "#0b1329";
-        ctx.font = "black 28px sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillText("SPECIAL OFFER: FREE SITE VISIT & IMMEDIATE REGISTRATION!", 540, 1120);
-
-        // Footer
-        ctx.strokeStyle = "rgba(212, 175, 55, 0.4)";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(50, 1180);
-        ctx.lineTo(1030, 1180);
-        ctx.stroke();
-
-        // Location Address
-        ctx.fillStyle = "#e4e4e7";
-        ctx.font = "24px sans-serif";
-        ctx.textAlign = "left";
-        ctx.fillText(`📍 ADDRESS: ${formValues.address}`, 50, 1235);
-
-        // Contact
-        ctx.fillStyle = "#d4af37";
-        ctx.font = "bold 34px sans-serif";
-        ctx.textAlign = "right";
-        ctx.fillText(`📞 CALL: ${formValues.phone}`, 1030, 1235);
+        if (selectedTemplate === "full_ai_poster") {
+          drawImage2MarketingFlyer(ctx, img, formValues, activeDesignPlan, includeImage, bgImg);
+        } else {
+          drawImage2MarketingFlyer(ctx, img, formValues, activeDesignPlan, includeImage);
+        }
       } else if (selectedTemplate === "dark_luxury") {
         // Dark theme background
         ctx.fillStyle = "#16161a";
@@ -749,16 +1035,22 @@ ${hashtags}`;
   };
 
   // Helper text-wrap function for canvas
-  const wrapText = (ctx: CanvasRenderingContext2D, text: string, x: number, y: number, maxWidth: number, lineHeight: number) => {
+  const wrapText = (ctx: CanvasRenderingContext2D, text: string, x: number, y: number, maxWidth: number, lineHeight: number, maxLines?: number) => {
     const words = text.split(" ");
     let line = "";
     let currentY = y;
+    let lineCount = 0;
 
     for (let n = 0; n < words.length; n++) {
       const testLine = line + words[n] + " ";
       const metrics = ctx.measureText(testLine);
       const testWidth = metrics.width;
       if (testWidth > maxWidth && n > 0) {
+        lineCount++;
+        if (maxLines && lineCount >= maxLines) {
+          ctx.fillText(line.trim() + "...", x, currentY);
+          return;
+        }
         ctx.fillText(line, x, currentY);
         line = words[n] + " ";
         currentY += lineHeight;
@@ -777,6 +1069,59 @@ ${hashtags}`;
     ctx.clip();
     ctx.drawImage(img, x, y, width, height);
     ctx.restore();
+  };
+
+  // Helper to draw rounded images with cover aspect ratio scaling
+  const drawImageCover = (ctx: CanvasRenderingContext2D, img: HTMLImageElement, x: number, y: number, w: number, h: number) => {
+    const imgRatio = img.width / img.height;
+    const destRatio = w / h;
+    let sx = 0, sy = 0, sw = img.width, sh = img.height;
+    if (imgRatio > destRatio) {
+      sw = img.height * destRatio;
+      sx = (img.width - sw) / 2;
+    } else {
+      sh = img.width / destRatio;
+      sy = (img.height - sh) / 2;
+    }
+    ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
+  };
+
+  // Helper to extract property features strictly matching real details
+  const extractPropertyFeatures = (description: string, title: string): string[] => {
+    const text = `${title} ${description}`.toLowerCase();
+    const features: string[] = [];
+
+    if (text.includes("dtcp") || text.includes("டிடிசிபி") || text.includes("approval") || text.includes("அப்ரூவல்")) {
+      features.push("DTCP Approved");
+    }
+    if (text.includes("clear title") || text.includes("பத்திரம்") || text.includes("பட்டா") || text.includes("patta") || text.includes("clear document")) {
+      features.push("Clear Documents");
+    }
+    if (text.includes("prime") || text.includes("அருமையான") || text.includes("முக்கிய") || text.includes("main road")) {
+      features.push("Prime Location");
+    }
+    if (text.includes("road") || text.includes("ரோடு") || text.includes("feet") || text.includes("அடி")) {
+      const match = text.match(/(\d+)\s*(feet|foot|adi|அடி)\s*(road|ரோடு)/) || text.match(/(road|ரோடு)\s*(\d+)\s*(feet|foot|adi|அடி)/);
+      if (match) {
+        features.push(`${match[1]} Ft Road`);
+      } else {
+        features.push("Wide Road");
+      }
+    }
+    if (text.includes("immediate") || text.includes("உடனடி") || text.includes("ready for registration") || text.includes("பதிவு")) {
+      features.push("Immediate Reg.");
+    }
+    if (text.includes("water") || text.includes("தண்ணீர்") || text.includes("கிணறு") || text.includes("borewell")) {
+      features.push("Water Facility");
+    }
+    if (text.includes("eb") || text.includes("electricity") || text.includes("மின்சாரம்") || text.includes("power")) {
+      features.push("Electricity (EB)");
+    }
+    if (text.includes("gate") || text.includes("gated") || text.includes("கம்பவுண்ட்") || text.includes("compound")) {
+      features.push("Gated Community");
+    }
+
+    return features.slice(0, 4); // Max 4 features
   };
 
   // Publish to Instagram Mutation
@@ -798,7 +1143,7 @@ ${hashtags}`;
           ? "Simulation Successful! DB status updated to 'Simulated'."
           : "Successfully published to live Instagram! DB status updated to 'Published'."
       );
-      
+
       // Invalidate queries so listings page shows new status
       queryClient.invalidateQueries({ queryKey: ["real", "all-properties"] });
       queryClient.invalidateQueries({ queryKey: ["admin", "posts"] });
@@ -925,7 +1270,7 @@ ${hashtags}`;
         </Card>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          
+
           {/* LEFT COLUMN: EDITOR FORM & CAPTION (7 cols) */}
           <div className="lg:col-span-7 space-y-6">
 
@@ -942,7 +1287,7 @@ ${hashtags}`;
                 </Link>
               </Button>
             </div>
-            
+
             {/* 1. Status Indicator */}
             {hasPublished && (
               <Card className="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
@@ -968,7 +1313,7 @@ ${hashtags}`;
               </Card>
             )}
 
-             {currentStatus === "Draft" && (
+            {currentStatus === "Draft" && (
               <Card className="border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300">
                 <CardContent className="p-4 flex items-start gap-3 text-sm font-medium">
                   <FileText className="h-5 w-5 shrink-0 text-amber-600 mt-0.5" />
@@ -1002,7 +1347,7 @@ ${hashtags}`;
                 <CardDescription>Customize the text content that appears on the graphic poster.</CardDescription>
               </CardHeader>
               <CardContent className="pt-6 space-y-4">
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <label className="text-xs font-semibold text-muted-foreground">Property Title</label>
@@ -1102,98 +1447,58 @@ ${hashtags}`;
               </CardContent>
             </Card>
 
-            {/* 3. Image Selection */}
+            {/* 3. Image Selection & Reference */}
             <Card>
               <CardHeader className="pb-4 border-b border-border/40">
                 <CardTitle className="text-base font-bold flex items-center gap-2">
                   <ImageIcon className="h-4 w-4 text-primary" />
-                  Select Main Image
+                  Select Main Image & Design Style Reference
                 </CardTitle>
-                <CardDescription>Select a scraped listing image or upload your own custom photo.</CardDescription>
+                <CardDescription>Upload a design style reference, and select/upload a property photo (optional overlay).</CardDescription>
               </CardHeader>
               <CardContent className="pt-6 space-y-6">
-                
-                {/* Custom File Upload Widget */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="flex flex-col items-center justify-center border-2 border-dashed border-border hover:border-primary/50 rounded-lg p-5 cursor-pointer hover:bg-muted/30 transition-colors h-full">
-                      <div className="flex flex-col items-center gap-1.5 text-center text-xs">
-                        <ImageIcon className="h-6 w-6 text-muted-foreground animate-pulse" />
-                        <span className="font-semibold text-foreground">Upload Custom Image</span>
-                        <span className="text-[10px] text-muted-foreground font-medium">Select a JPEG/PNG photo from your computer</span>
+
+                {/* Reference Design Image Upload */}
+                <div className="space-y-2 border border-border/80 rounded-lg p-4 bg-amber-500/5 border-amber-500/20">
+                  <label className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                    <Palette className="h-3.5 w-3.5 text-amber-500" />
+                    Upload Design Reference Image (Optional)
+                  </label>
+                  <p className="text-[11px] text-muted-foreground">The AI will analyze this reference poster's style, colors, and layout to generate a similar design for your property details.</p>
+
+                  <div className="flex gap-4 items-center mt-2">
+                    <label className="flex flex-col items-center justify-center border border-dashed border-border hover:border-amber-500/50 rounded-lg p-3 cursor-pointer hover:bg-muted/30 transition-colors w-32 h-20 shrink-0">
+                      <div className="flex flex-col items-center gap-1 text-center text-[10px]">
+                        <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-semibold text-foreground">Upload Style</span>
                       </div>
                       <input
                         type="file"
                         accept="image/*"
-                        onChange={handleCustomImageUpload}
+                        onChange={handleReferenceImageUpload}
                         className="hidden"
                       />
                     </label>
-                  </div>
 
-                  {/* AI Image Generator Form */}
-                  <div className="border border-border/80 rounded-lg p-4 bg-muted/10 space-y-3 flex flex-col justify-between">
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-bold text-foreground flex items-center gap-1">
-                        <Sparkles className="h-3 w-3 text-yellow-500 animate-spin" />
-                        AI Image Generator (Flux)
-                      </label>
-                      <textarea
-                        value={aiPrompt}
-                        onChange={(e) => setAiPrompt(e.target.value)}
-                        rows={3}
-                        className="w-full rounded-md border border-input bg-transparent px-2.5 py-1.5 text-[10px] shadow-sm resize-none focus:outline-none"
-                        placeholder="Describe the property style..."
-                      />
-                    </div>
-                    <Button
-                      onClick={handleGenerateAiImage}
-                      disabled={isGeneratingAiImage}
-                      size="sm"
-                      className="w-full text-xs font-semibold gap-1.5 h-8 bg-yellow-500 text-slate-900 hover:bg-yellow-600 border-none"
-                    >
-                      {isGeneratingAiImage ? (
-                        <>
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                          Painting...
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="h-3.5 w-3.5" />
-                          Generate AI Image
-                        </>
-                      )}
-                    </Button>
+                    {referenceImage ? (
+                      <div className="relative w-20 h-20 rounded-md overflow-hidden border border-border group">
+                        <img src={referenceImage} alt="Reference" className="w-full h-full object-cover" />
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setReferenceImage(null);
+                            setGeneratedPoster("");
+                          }}
+                          className="absolute inset-0 bg-black/60 text-white flex items-center justify-center text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-[10px] text-muted-foreground">No reference image uploaded. Default premium template style will be used.</span>
+                    )}
                   </div>
                 </div>
-
-                {/* Custom Uploaded Images Grid */}
-                {customImages.length > 0 && (
-                  <div className="space-y-2">
-                    <h4 className="text-xs font-bold text-foreground">Uploaded Custom Images</h4>
-                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
-                      {customImages.map((url, idx) => {
-                        const isSelected = selectedImage === url;
-                        return (
-                          <div
-                            key={`custom_${idx}`}
-                            onClick={() => {
-                              setSelectedImage(url);
-                              setGeneratedPoster("");
-                            }}
-                            className={`aspect-square rounded-md overflow-hidden border-2 cursor-pointer relative transition-all ${
-                              isSelected ? "border-primary ring-2 ring-primary/20 scale-95" : "border-border/60 hover:border-muted-foreground/40"
-                            }`}
-                          >
-                            <img src={url} alt="Custom upload" className="w-full h-full object-cover" />
-                            <Badge className="absolute top-1 left-1 bg-primary text-primary-foreground text-[8px] font-bold py-0.5 px-1 rounded-sm">Custom</Badge>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
 
               </CardContent>
             </Card>
@@ -1219,9 +1524,8 @@ ${hashtags}`;
                           setSelectedTemplate(tpl.id);
                           setGeneratedPoster(""); // Clear generated
                         }}
-                        className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                          isSelected ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-border hover:bg-muted/40"
-                        }`}
+                        className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${isSelected ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-border hover:bg-muted/40"
+                          }`}
                       >
                         <div className="font-bold text-xs flex items-center gap-1.5">
                           <Layout className={`h-3.5 w-3.5 ${isSelected ? "text-primary" : "text-muted-foreground"}`} />
@@ -1264,7 +1568,7 @@ ${hashtags}`;
 
           {/* RIGHT COLUMN: LIVE PREVIEW & INSTAGRAM PUBLISHING (5 cols) */}
           <div className="lg:col-span-5 space-y-6">
-            
+
             {/* 1. Live Interactive Preview */}
             <Card className="shadow-lg border-border/80 sticky top-4">
               <CardHeader className="pb-4 border-b border-border/50">
@@ -1276,226 +1580,293 @@ ${hashtags}`;
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-6 flex flex-col items-center gap-6">
-                
+
                 {/* 4:5 Scaled Card Frame (simulates 1080x1350) */}
-                <div className="w-full max-w-[340px] aspect-[4/5] rounded-lg border border-border shadow-sm overflow-hidden relative select-none">
-                  
-                  {/* AI GRAPHIC DESIGNER PREVIEW PLACEHOLDER */}
-                  {selectedTemplate === "full_ai_poster" && (
-                    <div className="w-full h-full bg-gradient-to-b from-[#050b1a] to-[#030712] text-white flex flex-col justify-between p-3 relative font-sans text-[8px] border-4 border-[#d4af37] rounded overflow-hidden select-none">
-                      {/* Full-bleed background image with absolute positioning */}
-                      {selectedImage && (
-                        <img src={selectedImage} alt="AI Background" className="absolute inset-0 w-full h-full object-cover opacity-40 z-0" />
+                <div className="w-full max-w-[340px] aspect-[4/5] rounded-lg border border-border shadow-sm overflow-hidden relative select-none bg-slate-950 flex items-center justify-center">
+
+                  {activePreviewSlide === 0 ? (
+                    <img src="http://localhost:5000/uploads/brand_welcome.png" alt="Slide 1: Welcome Branding" className="w-full h-full object-cover" />
+                  ) : activePreviewSlide === 1 ? (
+                    selectedImage ? (
+                      <img src={selectedImage} alt="Slide 2: Original Listing Photo" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="text-zinc-400 text-xs font-semibold">No listing photo available</div>
+                    )
+                  ) : generatedPoster ? (
+                    <img src={generatedPoster} alt="Live Poster Preview" className="w-full h-full object-contain" />
+                  ) : (
+                    <>
+                      {/* AI GRAPHIC DESIGNER PREVIEW PLACEHOLDER */}
+                      {selectedTemplate === "full_ai_poster" && (
+                        <div className="w-full h-full bg-gradient-to-b from-[#050b1a] to-[#030712] text-white flex flex-col justify-between p-3 relative font-sans text-[8px] border-4 border-[#d4af37] rounded shadow-inner">
+                          {/* Header */}
+                          <div className="flex items-center gap-1.5 border-b border-[#d4af37]/40 pb-1">
+                            <div className="w-6 h-6 rounded-full border-2 border-[#d4af37] bg-slate-800 flex items-center justify-center font-bold text-[6px] text-[#d4af37] shrink-0">LOGO</div>
+                            <div className="truncate">
+                              <h5 className="font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-yellow-400 uppercase text-[9px] leading-none truncate">{formValues.businessName || "BUSINESS NAME"}</h5>
+                              <span className="text-[5px] text-zinc-400 uppercase tracking-wide">Premium Gated Community</span>
+                            </div>
+                          </div>
+
+                          {/* Slanted Banner Box */}
+                          <div className="bg-slate-900 border border-[#d4af37]/60 p-1.5 rounded relative overflow-hidden my-0.5 select-none">
+                            <p className="text-[7px] font-bold text-white uppercase tracking-tight leading-none">WANT TO OWN A PLACE IN A PRIME LOCATION?</p>
+                            <div className="flex justify-between items-center mt-1">
+                              <div className="bg-gradient-to-r from-yellow-400 to-yellow-500 text-red-950 font-extrabold text-[8.5px] py-0.5 px-2 rounded uppercase leading-none shadow-sm">{formValues.budget || "BEST PRICES"}</div>
+                              <span className="text-[6.5px] text-zinc-300 font-medium">📍 Prime Neighborhood</span>
+                            </div>
+                          </div>
+
+                          {/* Mid Content */}
+                          <div className="flex flex-col flex-grow justify-between py-1 relative">
+                            {/* Image Frame (Full Width with Gold Border) */}
+                            <div className="w-full aspect-[16/9] max-h-[110px] rounded overflow-hidden border border-[#d4af37] bg-slate-800 shrink-0 self-center">
+                              {aiBackgroundUrl ? (
+                                <img src={aiBackgroundUrl} alt="Main" className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full flex flex-col items-center justify-center text-[6px] text-zinc-400 gap-1">
+                                  <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                                  <span>AI image generating...</span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Description Box Overlay */}
+                            <div className="bg-slate-950/80 border border-[#d4af37]/20 p-1 rounded mt-1.5 text-center">
+                              <p className="text-[6.5px] text-zinc-200 italic line-clamp-3 leading-snug font-medium">
+                                {formValues.description || "Describe your premium listing highlights here..."}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Footer */}
+                          <div className="border-t border-[#d4af37]/40 pt-1 flex items-center justify-between text-[7px] text-zinc-300 leading-none">
+                            <div className="truncate max-w-[150px]">📍 {formValues.address}</div>
+                            <div className="font-bold text-[#d4af37] truncate">📞 {formValues.phone}</div>
+                          </div>
+                        </div>
                       )}
-                      <div className="absolute inset-0 bg-gradient-to-b from-[#050b1a]/95 via-transparent to-[#030712]/95 z-10" />
 
-                      {/* Header */}
-                      <div className="flex items-center gap-1.5 border-b border-[#d4af37]/40 pb-1 z-20 relative">
-                        <div className="w-6 h-6 rounded-full border-2 border-[#d4af37] bg-slate-800 flex items-center justify-center font-bold text-[6px] text-[#d4af37] shrink-0">LOGO</div>
-                        <div className="truncate">
-                          <h5 className="font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-yellow-400 uppercase text-[9px] leading-none truncate">{formValues.businessName || "BUSINESS NAME"}</h5>
-                          <span className="text-[5px] text-zinc-400 uppercase tracking-wide">Premium Gated Community</span>
+                      {/* PREMIUM FLYER (IMAGE 2 STYLE) PREVIEW */}
+                      {selectedTemplate === "premium_flyer" && (
+                        <div className="w-full h-full bg-gradient-to-b from-[#050b1a] to-[#030712] text-white flex flex-col justify-between p-3 relative font-sans text-[8px] border-4 border-[#d4af37] rounded shadow-inner">
+                          {/* Header */}
+                          <div className="flex items-center gap-1.5 border-b border-[#d4af37]/40 pb-1">
+                            <div className="w-6 h-6 rounded-full border-2 border-[#d4af37] bg-slate-800 flex items-center justify-center font-bold text-[6px] text-[#d4af37] shrink-0">LOGO</div>
+                            <div className="truncate">
+                              <h5 className="font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-yellow-400 uppercase text-[9px] leading-none truncate">{formValues.businessName || "BUSINESS NAME"}</h5>
+                              <span className="text-[5px] text-zinc-400 uppercase tracking-wide">Premium Gated Community</span>
+                            </div>
+                          </div>
+
+                          {/* Slanted Banner Box */}
+                          <div className="bg-slate-900 border border-[#d4af37]/60 p-1.5 rounded relative overflow-hidden my-0.5 select-none">
+                            <p className="text-[7px] font-bold text-white uppercase tracking-tight leading-none">WANT TO OWN A PLACE IN A PRIME LOCATION?</p>
+                            <div className="flex justify-between items-center mt-1">
+                              <div className="bg-gradient-to-r from-yellow-400 to-yellow-500 text-red-950 font-extrabold text-[8.5px] py-0.5 px-2 rounded uppercase leading-none shadow-sm">{formValues.budget || "BEST PRICES"}</div>
+                              <span className="text-[6.5px] text-zinc-300 font-medium">📍 Prime Neighborhood</span>
+                            </div>
+                          </div>
+
+                          {/* Mid Content */}
+                          <div className="flex flex-col flex-grow justify-between py-1 relative">
+                            {/* Image Frame (Full Width with Gold Border) */}
+                            <div className="w-full aspect-[16/9] max-h-[110px] rounded overflow-hidden border border-[#d4af37] bg-slate-800 shrink-0 self-center">
+                              {selectedImage ? (
+                                <img src={selectedImage} alt="Main" className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-[6px] text-zinc-400">No image selected</div>
+                              )}
+                            </div>
+
+                            {/* Description Box Overlay */}
+                            <div className="bg-slate-950/80 border border-[#d4af37]/20 p-1 rounded mt-1.5 text-center">
+                              <p className="text-[6.5px] text-zinc-200 italic line-clamp-3 leading-snug font-medium">
+                                {formValues.description || "Describe your premium listing highlights here..."}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Footer */}
+                          <div className="border-t border-[#d4af37]/40 pt-1 flex items-center justify-between text-[7px] text-zinc-300 leading-none">
+                            <div className="truncate max-w-[150px]">📍 {formValues.address}</div>
+                            <div className="font-bold text-[#d4af37] truncate">📞 {formValues.phone}</div>
+                          </div>
                         </div>
-                      </div>
+                      )}
 
-                      {/* Slanted Banner Box */}
-                      <div className="bg-slate-900/90 border border-[#d4af37]/60 p-1.5 rounded relative overflow-hidden my-0.5 z-20">
-                        <p className="text-[7px] font-bold text-white uppercase tracking-tight leading-none">WANT TO OWN A PLACE IN A PRIME LOCATION?</p>
-                        <div className="flex justify-between items-center mt-1">
-                          <div className="bg-gradient-to-r from-yellow-400 to-yellow-500 text-red-950 font-extrabold text-[8.5px] py-0.5 px-2 rounded uppercase leading-none shadow-sm">{formValues.budget || "BEST PRICES"}</div>
-                          <span className="text-[6.5px] text-zinc-300 font-medium">📍 Prime Neighborhood</span>
+                      {/* MODERN LIGHT PREVIEW */}
+                      {selectedTemplate === "modern_light" && (
+                        <div className="w-full h-full bg-[#f8fafc] text-slate-800 flex flex-col justify-between p-3 relative font-sans text-[8px] border border-slate-200 shadow-inner">
+                          <div className="flex flex-col flex-grow justify-between relative">
+                            {/* Title banner */}
+                            <div className="shrink-0">
+                              <h5 className="font-extrabold text-[10px] text-slate-900 leading-tight line-clamp-2">{formValues.title || "Property Title"}</h5>
+                              <span className="text-[6px] font-bold text-slate-500 uppercase tracking-wider">{formValues.category} • FOR {formValues.listingType}</span>
+                            </div>
+
+                            {/* Center image frame */}
+                            <div className="w-full aspect-[4/3] rounded overflow-hidden border border-slate-200 bg-slate-100 my-1">
+                              {selectedImage ? (
+                                <img src={selectedImage} alt="Main light" className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-[6px] text-slate-400">No image selected</div>
+                              )}
+                            </div>
+
+                            {/* Description brief */}
+                            <p className="text-[6.5px] text-slate-600 line-clamp-2 leading-relaxed italic">
+                              {formValues.description || "Listing description details..."}
+                            </p>
+                          </div>
+
+                          {/* Footer Info Box */}
+                          <div className="border-t border-slate-200 mt-1.5 pt-1 flex items-center justify-between text-[7.5px] text-slate-700 leading-none font-medium">
+                            <span className="truncate max-w-[130px]">📍 {formValues.address}</span>
+                            <span className="font-extrabold text-teal-600">{formValues.budget || "View Details"}</span>
+                            <span className="font-bold">📞 {formValues.phone}</span>
+                          </div>
                         </div>
-                      </div>
+                      )}
 
-                      {/* Mid Content space */}
-                      <div className="flex-grow z-20" />
+                      {/* DARK LUXURY PREVIEW */}
+                      {selectedTemplate === "dark_luxury" && (
+                        <div className="w-full h-full bg-slate-950 text-white flex flex-col justify-between p-4 relative font-sans text-[8px] border-2 border-amber-500/20 shadow-2xl">
+                          <div className="flex flex-col flex-grow justify-between">
+                            {/* Luxury header */}
+                            <div className="text-center shrink-0 space-y-0.5 border-b border-amber-500/20 pb-1.5">
+                              <h5 className="font-serif tracking-widest text-[#d4af37] text-[10px] font-bold uppercase">{formValues.businessName}</h5>
+                              <span className="text-[5px] tracking-wider text-slate-400 uppercase">Luxury Real Estate Portfolio</span>
+                            </div>
 
-                      {/* Description Box Overlay */}
-                      <div className="bg-slate-950/90 border border-[#d4af37]/20 p-1.5 rounded my-1.5 text-center z-20 relative">
-                        <p className="text-[6.5px] text-zinc-200 italic line-clamp-3 leading-snug font-medium">
-                          {formValues.description || "Describe your premium listing highlights here..."}
-                        </p>
-                      </div>
+                            {/* Circle image container frame */}
+                            <div className="w-[90px] h-[90px] rounded-full overflow-hidden border-2 border-[#d4af37] bg-slate-900 mx-auto my-1.5 flex items-center justify-center shrink-0">
+                              {selectedImage ? (
+                                <img src={selectedImage} alt="Luxury visual" className="w-full h-full object-cover" />
+                              ) : (
+                                <span className="text-[5px] text-slate-400">No Image</span>
+                              )}
+                            </div>
 
-                      {/* Special Offer */}
-                      <div className="bg-[#d4af37] text-[#0b1329] text-center font-black text-[7.5px] py-0.5 rounded uppercase tracking-wide my-0.5 leading-none z-20 relative">
-                        Special Offer: Free Site Visit & Immediate Registration!
-                      </div>
+                            {/* Title and details */}
+                            <div className="text-center space-y-1">
+                              <h4 className="font-serif text-[#d4af37] text-[9.5px] leading-tight font-black line-clamp-1 uppercase">{formValues.title}</h4>
+                              <p className="text-[6.5px] text-slate-300 line-clamp-2 italic leading-relaxed px-1">
+                                {formValues.description}
+                              </p>
+                            </div>
+                          </div>
 
-                      {/* Footer */}
-                      <div className="border-t border-[#d4af37]/40 pt-1 flex items-center justify-between text-[7px] text-zinc-300 leading-none z-20 relative">
-                        <div className="truncate max-w-[150px]">📍 {formValues.address || "Location"}</div>
-                        <div className="font-bold text-[#d4af37] truncate">📞 {formValues.phone || "Call Info"}</div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* PREMIUM FLYER (IMAGE 2 STYLE) PREVIEW */}
-                  {selectedTemplate === "premium_flyer" && (
-                    <div className="w-full h-full bg-gradient-to-b from-[#050b1a] to-[#030712] text-white flex flex-col justify-between p-3 relative font-sans text-[8px] border-4 border-[#d4af37] rounded shadow-inner">
-                      {/* Header */}
-                      <div className="flex items-center gap-1.5 border-b border-[#d4af37]/40 pb-1">
-                        <div className="w-6 h-6 rounded-full border-2 border-[#d4af37] bg-slate-800 flex items-center justify-center font-bold text-[6px] text-[#d4af37] shrink-0">LOGO</div>
-                        <div className="truncate">
-                          <h5 className="font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-yellow-400 uppercase text-[9px] leading-none truncate">{formValues.businessName || "BUSINESS NAME"}</h5>
-                          <span className="text-[5px] text-zinc-400 uppercase tracking-wide">Premium Gated Community</span>
+                          {/* Contact and address footer */}
+                          <div className="border-t border-amber-500/20 mt-1.5 pt-1.5 flex items-center justify-between text-[7px] text-slate-400">
+                            <span className="truncate max-w-[130px]">📍 {formValues.address}</span>
+                            <span className="font-bold text-[#d4af37] text-[8px]">{formValues.budget}</span>
+                            <span className="font-bold text-white">📞 {formValues.phone}</span>
+                          </div>
                         </div>
-                      </div>
+                      )}
 
-                      {/* Slanted Banner Box */}
-                      <div className="bg-slate-900 border border-[#d4af37]/60 p-1.5 rounded relative overflow-hidden my-0.5 select-none">
-                        <p className="text-[7px] font-bold text-white uppercase tracking-tight leading-none">WANT TO OWN A PLACE IN A PRIME LOCATION?</p>
-                        <div className="flex justify-between items-center mt-1">
-                          <div className="bg-gradient-to-r from-yellow-400 to-yellow-500 text-red-950 font-extrabold text-[8.5px] py-0.5 px-2 rounded uppercase leading-none shadow-sm">{formValues.budget || "BEST PRICES"}</div>
-                          <span className="text-[6.5px] text-zinc-300 font-medium">📍 Prime Neighborhood</span>
+                      {/* BOLD TEAL PREVIEW */}
+                      {selectedTemplate === "bold_teal" && (
+                        <div className="w-full h-full bg-teal-950 text-white flex flex-col justify-between p-3.5 relative font-sans text-[8px] border-l-[12px] border-teal-500 shadow-lg">
+                          <div className="flex flex-col flex-grow justify-between">
+                            <div className="space-y-1 shrink-0">
+                              <div className="flex gap-1">
+                                <Badge className="bg-yellow-400 text-teal-950 font-bold text-[8px] py-0 px-1 hover:bg-yellow-400">{formValues.category.toUpperCase()}</Badge>
+                                <Badge className="bg-white text-teal-800 font-bold text-[8px] py-0 px-1 hover:bg-white">FOR {formValues.listingType.toUpperCase()}</Badge>
+                              </div>
+                              <h4 className="font-bold text-[13px] leading-tight line-clamp-2">{formValues.title || "Property Title"}</h4>
+                              <p className="text-yellow-300 font-extrabold text-[14px]">{formValues.budget || "Budget"}</p>
+                            </div>
+
+                            <div className="bg-white rounded p-1.5 flex items-center justify-between text-[9px] text-teal-900 font-bold">
+                              <span>📍 {formValues.address || "Location"}</span>
+                              <span>📞 {formValues.phone || "Call"}</span>
+                            </div>
+                          </div>
                         </div>
-                      </div>
+                      )}
 
-                      {/* Mid Content */}
-                      <div className="flex flex-col flex-grow justify-between py-1 relative">
-                        {/* Image Frame (Full Width with Gold Border) */}
-                        <div className="w-full aspect-[16/9] max-h-[110px] rounded overflow-hidden border border-[#d4af37] bg-slate-800 shrink-0 self-center">
+                      {/* WARM SUNSET PREVIEW */}
+                      {selectedTemplate === "warm_sunset" && (
+                        <div className="w-full h-full bg-gradient-to-br from-orange-400 to-amber-300 flex flex-col justify-between p-4 relative text-xs font-sans">
                           {selectedImage ? (
-                            <img src={selectedImage} alt="Main" className="w-full h-full object-cover" />
+                            <div className="w-full h-[48%] rounded-lg overflow-hidden border border-orange-500/20">
+                              <img src={selectedImage} alt="Main select" className="w-full h-full object-cover" />
+                            </div>
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center text-[6px] text-zinc-400">No image selected</div>
+                            <div className="w-full h-[48%] bg-muted flex items-center justify-center text-[10px]">No image selected</div>
                           )}
-                        </div>
 
-                        {/* Description Box Overlay */}
-                        <div className="bg-slate-950/80 border border-[#d4af37]/20 p-1 rounded mt-1.5 text-center">
-                          <p className="text-[6.5px] text-zinc-200 italic line-clamp-3 leading-snug font-medium">
-                            {formValues.description || "Describe your premium listing highlights here..."}
-                          </p>
-                        </div>
-                      </div>
+                          <div className="bg-white rounded-xl p-3 flex-1 mt-2.5 flex flex-col justify-between text-slate-800 shadow-sm border border-orange-500/10">
+                            <div className="space-y-1">
+                              <h4 className="font-bold text-[12px] leading-tight text-slate-800 line-clamp-2">{formValues.title || "Property Title"}</h4>
+                              <div className="flex gap-1">
+                                <Badge className="bg-orange-500 hover:bg-orange-500 text-white text-[7px] py-0.2 px-1 rounded">{formValues.category.toUpperCase()}</Badge>
+                                <Badge className="bg-[#319795] hover:bg-[#319795] text-white text-[7px] py-0.2 px-1 rounded">{formValues.listingType.toUpperCase()}</Badge>
+                              </div>
+                            </div>
 
-                      {/* Special Offer */}
-                      <div className="bg-[#d4af37] text-[#0b1329] text-center font-black text-[7.5px] py-0.5 rounded uppercase tracking-wide my-0.5 leading-none">
-                        Special Offer: Free Site Visit & Immediate Registration!
-                      </div>
-
-                      {/* Footer */}
-                      <div className="border-t border-[#d4af37]/40 pt-1 flex items-center justify-between text-[7px] text-zinc-300 leading-none">
-                        <div className="truncate max-w-[150px]">📍 {formValues.address || "Location"}</div>
-                        <div className="font-bold text-[#d4af37] truncate">📞 {formValues.phone || "Call Info"}</div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* MODERN LIGHT TEMPLATE PREVIEW */}
-                  {selectedTemplate === "modern_light" && (
-                    <div className="w-full h-full bg-[#faf9f6] flex flex-col justify-between p-3 relative font-sans text-xs">
-                      {selectedImage ? (
-                        <div className="w-full h-[55%] relative rounded overflow-hidden">
-                          <img src={selectedImage} alt="Main select" className="w-full h-full object-cover" />
-                          <Badge className="absolute top-2 right-2 bg-emerald-600 border-0 text-white text-[8px] font-bold py-0.5 px-1">{formValues.category.toUpperCase()}</Badge>
-                          <Badge className="absolute top-8 right-2 bg-blue-600 border-0 text-white text-[8px] font-bold py-0.5 px-1">FOR {formValues.listingType.toUpperCase()}</Badge>
-                        </div>
-                      ) : (
-                        <div className="w-full h-[55%] bg-muted flex items-center justify-center text-muted-foreground text-[10px]">No image selected</div>
-                      )}
-                      
-                      <div className="flex-1 flex flex-col justify-between pt-2">
-                        <div className="space-y-1">
-                          <h4 className="font-bold text-slate-800 text-[13px] leading-tight line-clamp-2">{formValues.title || "Property Title"}</h4>
-                          <p className="text-[10px] text-slate-600 line-clamp-2 leading-tight">{formValues.description || "Listing Highlights"}</p>
-                          <p className="text-emerald-700 font-bold text-sm mt-1">{formValues.budget || "Budget"}</p>
-                        </div>
-
-                        <div className="border-t border-slate-200 pt-1.5 flex items-center justify-between text-[9px] text-slate-500">
-                          <span className="truncate max-w-[150px]">📍 {formValues.address || "Location"}</span>
-                          <span className="font-bold text-slate-800 truncate">📞 {formValues.phone || "Call Info"}</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* DARK LUXURY TEMPLATE PREVIEW */}
-                  {selectedTemplate === "dark_luxury" && (
-                    <div className="w-full h-full bg-[#16161a] border-4 border-[#d4af37] flex flex-col justify-between p-3.5 relative text-xs">
-                      {selectedImage ? (
-                        <div className="w-full h-[52%] relative rounded overflow-hidden border border-[#d4af37]/30">
-                          <img src={selectedImage} alt="Main select" className="w-full h-full object-cover" />
-                          <div className="absolute top-2 left-2 bg-[#d4af37] text-[#16161a] text-[8px] font-bold py-0.5 px-1">{formValues.category.toUpperCase()}</div>
-                        </div>
-                      ) : (
-                        <div className="w-full h-[52%] bg-muted flex items-center justify-center text-[10px]">No image selected</div>
-                      )}
-
-                      <div className="flex-1 flex flex-col justify-between pt-2 text-[#ffffff]">
-                        <div className="space-y-1">
-                          <h4 className="font-serif font-bold text-[14px] text-white leading-tight line-clamp-2">{formValues.title || "Property Title"}</h4>
-                          <p className="text-[11px] text-[#d4af37] font-bold font-serif">{formValues.budget || "Budget"}</p>
-                          <p className="text-[9px] text-zinc-400 italic line-clamp-2 leading-tight">{formValues.description || "Listing Highlights"}</p>
-                        </div>
-
-                        <div className="border-t border-[#d4af37]/40 pt-1.5 flex items-center justify-between text-[9px] text-zinc-300">
-                          <span className="truncate max-w-[140px]">📍 {formValues.address || "Location"}</span>
-                          <span className="font-bold text-white">📞 {formValues.phone || "Call Info"}</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* BOLD TEAL PREVIEW */}
-                  {selectedTemplate === "bold_teal" && (
-                    <div className="w-full h-full bg-gradient-to-br from-teal-600 to-teal-800 flex flex-col justify-between p-3.5 relative text-xs">
-                      {selectedImage ? (
-                        <div className="w-full h-[52%] relative rounded overflow-hidden">
-                          <img src={selectedImage} alt="Main select" className="w-full h-full object-cover" />
-                        </div>
-                      ) : (
-                        <div className="w-full h-[52%] bg-muted flex items-center justify-center text-[10px]">No image selected</div>
-                      )}
-
-                      <div className="flex-grow flex flex-col justify-between pt-2 text-white">
-                        <div className="space-y-1">
-                          <div className="flex gap-1">
-                            <Badge className="bg-yellow-400 text-teal-950 font-bold text-[8px] py-0 px-1 hover:bg-yellow-400">{formValues.category.toUpperCase()}</Badge>
-                            <Badge className="bg-white text-teal-800 font-bold text-[8px] py-0 px-1 hover:bg-white">FOR {formValues.listingType.toUpperCase()}</Badge>
-                          </div>
-                          <h4 className="font-bold text-[13px] leading-tight line-clamp-2">{formValues.title || "Property Title"}</h4>
-                          <p className="text-yellow-300 font-extrabold text-[14px]">{formValues.budget || "Budget"}</p>
-                        </div>
-
-                        <div className="bg-white rounded p-1.5 flex items-center justify-between text-[9px] text-teal-900 font-bold">
-                          <span>📍 {formValues.address || "Location"}</span>
-                          <span>📞 {formValues.phone || "Call"}</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* WARM SUNSET PREVIEW */}
-                  {selectedTemplate === "warm_sunset" && (
-                    <div className="w-full h-full bg-gradient-to-br from-orange-400 to-amber-300 flex flex-col justify-between p-4 relative text-xs font-sans">
-                      {selectedImage ? (
-                        <div className="w-full h-[48%] rounded-lg overflow-hidden border border-orange-500/20">
-                          <img src={selectedImage} alt="Main select" className="w-full h-full object-cover" />
-                        </div>
-                      ) : (
-                        <div className="w-full h-[48%] bg-muted flex items-center justify-center text-[10px]">No image selected</div>
-                      )}
-
-                      <div className="bg-white rounded-xl p-3 flex-1 mt-2.5 flex flex-col justify-between text-slate-800 shadow-sm border border-orange-500/10">
-                        <div className="space-y-1">
-                          <h4 className="font-bold text-[12px] leading-tight text-slate-800 line-clamp-2">{formValues.title || "Property Title"}</h4>
-                          <div className="flex gap-1">
-                            <Badge className="bg-orange-500 hover:bg-orange-500 text-white text-[7px] py-0.2 px-1 rounded">{formValues.category.toUpperCase()}</Badge>
-                            <Badge className="bg-[#319795] hover:bg-[#319795] text-white text-[7px] py-0.2 px-1 rounded">{formValues.listingType.toUpperCase()}</Badge>
+                            <div className="pt-1.5 border-t border-slate-100 flex flex-col gap-1 text-[9px] text-slate-500">
+                              <span className="text-orange-500 font-extrabold text-[12px]">{formValues.budget || "Budget"}</span>
+                              <span className="truncate">📍 {formValues.address}</span>
+                              <span className="font-bold text-slate-700">📞 Call: {formValues.phone}</span>
+                            </div>
                           </div>
                         </div>
-
-                        <div className="pt-1.5 border-t border-slate-100 flex flex-col gap-1 text-[9px] text-slate-500">
-                          <span className="text-orange-500 font-extrabold text-[12px]">{formValues.budget || "Budget"}</span>
-                          <span className="truncate">📍 {formValues.address}</span>
-                          <span className="font-bold text-slate-700">📞 Call: {formValues.phone}</span>
-                        </div>
-                      </div>
-                    </div>
+                      )}
+                    </>
                   )}
                 </div>
+
+                {/* Carousel Slides Selectors */}
+                <div className="flex flex-col items-center gap-1.5 w-full max-w-[340px] select-none bg-slate-900/40 p-2 rounded-lg border border-slate-800">
+                  <span className="text-[10px] text-zinc-400 uppercase tracking-widest font-black">Carousel Slide Preview</span>
+                  <div className="flex gap-2 w-full">
+                    <button
+                      type="button"
+                      onClick={() => setActivePreviewSlide(0)}
+                      className={`flex-1 py-1 px-1 text-[9px] font-black rounded uppercase tracking-tighter text-center transition-all ${activePreviewSlide === 0 ? 'bg-[#d4af37] text-slate-950 font-black scale-[1.03] shadow-md' : 'bg-slate-950/80 text-zinc-400 hover:text-white border border-slate-800'}`}
+                    >
+                      Slide 1: Logo
+                    </button>
+                    {hasListingMedia && (
+                      <button
+                        type="button"
+                        onClick={() => setActivePreviewSlide(1)}
+                        className={`flex-1 py-1 px-1 text-[9px] font-black rounded uppercase tracking-tighter text-center transition-all ${activePreviewSlide === 1 ? 'bg-[#d4af37] text-slate-950 font-black scale-[1.03] shadow-md' : 'bg-slate-950/80 text-zinc-400 hover:text-white border border-slate-800'}`}
+                      >
+                        Slide 2: Property
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setActivePreviewSlide(2)}
+                      className={`flex-1 py-1 px-1 text-[9px] font-black rounded uppercase tracking-tighter text-center transition-all ${activePreviewSlide === 2 ? 'bg-[#d4af37] text-slate-950 font-black scale-[1.03] shadow-md' : 'bg-slate-950/80 text-zinc-400 hover:text-white border border-slate-800'}`}
+                    >
+                      Slide 3: Poster
+                    </button>
+                  </div>
+                </div>
+
+                {/* AI Analysis CTA */}
+                <Button
+                  onClick={handleAIAnalysis}
+                  disabled={isAnalyzing || !selectedProperty}
+                  className="w-full max-w-[340px] font-semibold gap-1.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white border-none shadow"
+                >
+                  {isAnalyzing ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Analyzing Listing Data...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-4 w-4 animate-pulse text-yellow-300" />
+                      AI Analysis & Design Style
+                    </>
+                  )}
+                </Button>
 
                 {/* Generate Poster CTA */}
                 <Button
@@ -1521,15 +1892,15 @@ ${hashtags}`;
                       <img src={generatedPoster} alt="High resolution output" className="w-full h-full object-cover" />
                     </div>
                     <div className="flex justify-center gap-2 pt-2">
-                       <Button variant="outline" size="sm" onClick={() => setIsPreviewOpen(true)} className="h-8 text-xs font-semibold">
-                         View Fullscreen
-                       </Button>
-                       <Button asChild variant="outline" size="sm" className="h-8 text-xs font-semibold">
-                         <a href={generatedPoster} download={`poster_${listingId}.png`}>
-                           Download Image
-                         </a>
-                       </Button>
-                     </div>
+                      <Button variant="outline" size="sm" onClick={() => setIsPreviewOpen(true)} className="h-8 text-xs font-semibold">
+                        View Fullscreen
+                      </Button>
+                      <Button asChild variant="outline" size="sm" className="h-8 text-xs font-semibold">
+                        <a href={generatedPoster} download={`poster_${listingId}.png`}>
+                          Download Image
+                        </a>
+                      </Button>
+                    </div>
                   </div>
                 ) : (
                   <div className="w-full text-center py-2 text-[10px] text-muted-foreground italic">
@@ -1539,7 +1910,7 @@ ${hashtags}`;
 
                 {/* Publishing Controls */}
                 <div className="w-full border-t border-border/40 pt-4 space-y-4">
-                  
+
                   <div className="flex items-center space-x-2 text-xs">
                     <input
                       type="checkbox"
@@ -1611,34 +1982,40 @@ ${hashtags}`;
 
       {/* Fullscreen High-Res Poster Preview Dialog */}
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-         <DialogContent className="max-w-md max-h-[90vh] flex flex-col items-center p-6">
-           <DialogHeader className="w-full text-center pb-2 border-b">
-             <DialogTitle className="text-base font-bold text-foreground">Generated High-Res Poster</DialogTitle>
-             <DialogDescription className="text-[11px] text-muted-foreground">
-               Review the final 1080x1350px image format.
-             </DialogDescription>
-           </DialogHeader>
-           
-           <div className="flex-grow overflow-auto w-full flex justify-center py-3 bg-muted/20 rounded-lg border border-border/60 my-4 select-none">
-             <img
-               src={generatedPoster}
-               alt="High-Res Poster Preview"
-               className="max-h-[50vh] object-contain shadow-md rounded border aspect-[4/5]"
-             />
-           </div>
+        <DialogContent className="max-w-md max-h-[90vh] flex flex-col items-center p-6">
+          <DialogHeader className="w-full text-center pb-2 border-b">
+            <DialogTitle className="text-base font-bold text-foreground">Generated High-Res Poster</DialogTitle>
+            <DialogDescription className="text-[11px] text-muted-foreground">
+              Review the final 1080x1350px image format.
+            </DialogDescription>
+          </DialogHeader>
 
-           <div className="w-full flex gap-3">
-             <Button asChild variant="outline" className="flex-grow font-semibold text-xs h-9">
-               <a href={generatedPoster} download={`poster_${listingId}.png`}>
-                 Download Poster
-               </a>
-             </Button>
-             <Button onClick={() => setIsPreviewOpen(false)} className="flex-grow font-semibold text-xs h-9">
-               Close Preview
-             </Button>
-           </div>
-         </DialogContent>
-       </Dialog>
+          <div className="flex-grow overflow-auto w-full flex justify-center py-3 bg-muted/20 rounded-lg border border-border/60 my-4 select-none">
+            {generatedPoster ? (
+              <img
+                src={generatedPoster}
+                alt="High-Res Poster Preview"
+                className="max-h-[50vh] object-contain shadow-md rounded border aspect-[4/5]"
+              />
+            ) : (
+              <div className="flex items-center justify-center text-xs text-muted-foreground italic h-32">
+                No preview generated
+              </div>
+            )}
+          </div>
+
+          <div className="w-full flex gap-3">
+            <Button asChild variant="outline" className="flex-grow font-semibold text-xs h-9">
+              <a href={generatedPoster} download={`poster_${listingId}.png`}>
+                Download Poster
+              </a>
+            </Button>
+            <Button onClick={() => setIsPreviewOpen(false)} className="flex-grow font-semibold text-xs h-9">
+              Close Preview
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

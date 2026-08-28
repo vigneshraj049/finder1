@@ -12,6 +12,57 @@ import {
   publishMedia,
   PropertyForCaption,
 } from "../services/instagram.service";
+import {
+  analyzeReferencePoster,
+  generateDesignPlan,
+  DesignPlan,
+} from "../services/gemini.service";
+
+const IMAGE2_DEFAULT_STYLE =
+  "Dark forest green solid top header with gold logo circle on left and gold circular badge seal on right. " +
+  "Large central property photograph with rounded gold border frame. Dark green background behind bold yellow " +
+  "primary headline zone and white secondary headline. Bright yellow horizontal pointed banner for sale badge. " +
+  "White rounded info card with dark green icon rows for property details. Black contact footer bar with yellow " +
+  "phone number and gold Instagram pill button. Color palette: deep emerald green #062f21, gold #d4af37, " +
+  "bright yellow #facc15, pure white cards, black footer. Luxury corporate Indian real estate marketing flyer aesthetic.";
+
+const IMAGE2_DEFAULT_VISUAL_PROMPT =
+  "High-resolution, professional real estate architectural photography of a vacant residential land plot with clean boundary lines, asphalt road, green grass, trees, and a pleasant sky. Bright sunset lighting, award-winning composition, commercial property marketing photo. No text, no letters, no numbers, no logos, no watermark, no people, ultra high resolution.";
+
+const IMAGE2_DEFAULT_DESIGN_PLAN: DesignPlan = {
+  colors: {
+    primaryBg: "#062f21",
+    cardBg: "rgba(255, 255, 255, 0.95)",
+    textPrimary: "#ffffff",
+    textSecondary: "#ffe082",
+    accentColor: "#facc15",
+    borderGold: "#d4af37",
+    featureBadgeBg: "rgba(6, 47, 33, 0.9)",
+  },
+  typography: {
+    titleSize: 76,
+    descSize: 28,
+    priceSize: 34,
+    ctaSize: 34,
+  },
+  highlights: ["2400 SQ.FT", "SOUTH FACING", "LAND", "FOR SALE"],
+};
+
+let cachedBrandWelcomeUrl: string | null = null;
+
+const getBrandWelcomeUrl = async (): Promise<string> => {
+  if (cachedBrandWelcomeUrl) return cachedBrandWelcomeUrl;
+
+  const localPath = path.join(__dirname, "../../uploads/brand_welcome.png");
+  if (!fs.existsSync(localPath)) {
+    throw new Error(`brand_welcome.png not found at path: ${localPath}`);
+  }
+
+  const fileBuffer = fs.readFileSync(localPath);
+  const base64DataUrl = `data:image/png;base64,${fileBuffer.toString("base64")}`;
+  cachedBrandWelcomeUrl = await uploadBase64Image(base64DataUrl, "brand_welcome.png");
+  return cachedBrandWelcomeUrl;
+};
 
 export const publishPost = async (req: Request, res: Response) => {
   const { propertyId, caption: suppliedCaption, imageBase64, simulate } = req.body;
@@ -101,8 +152,22 @@ export const publishPost = async (req: Request, res: Response) => {
     });
   }
 
-  // Create carousel URLs array: Generated Flyer goes first, followed by up to 4 original post images
-  const carouselImages = [publicImageUrl, ...originalImages.slice(0, 4)];
+  // Upload or retrieve cached branding welcome slide
+  let welcomeUrl: string;
+  try {
+    welcomeUrl = await getBrandWelcomeUrl();
+  } catch (err: any) {
+    console.error("[Instagram Publish] Failed to upload brand_welcome.png:", err.message);
+    welcomeUrl = "";
+  }
+
+  // Create carousel URLs array: Welcome branding first, Listing image second, Flyer poster third
+  const carouselImages = [
+    ...(welcomeUrl ? [welcomeUrl] : []),
+    ...(originalImages.length > 0 ? [originalImages[0]] : []),
+    publicImageUrl,
+    ...originalImages.slice(1, 4),
+  ];
 
   // ── 3. Now mark as Publishing ────────────────────────────────────────────────
   await pool.query(
@@ -221,7 +286,7 @@ export const saveDraft = async (req: Request, res: Response) => {
     const buffer = Buffer.from(data, "base64");
     const filename = `draft_${propertyId}.${ext}`;
     const uploadsDir = path.join(__dirname, "../../uploads");
-    
+
     if (!fs.existsSync(uploadsDir)) {
       fs.mkdirSync(uploadsDir, { recursive: true });
     }
@@ -297,140 +362,172 @@ export const proxyImage = async (req: Request, res: Response) => {
     });
   }
 };
-// Generate a complete real-estate advertisement poster using Gemini Image Generation
+
+// Generate Image 2 style marketing flyer background + design plan using Gemini + Pollinations Flux
+const buildAiPosterPrompt = (
+  category: string,
+  listingType: string,
+  budget: string,
+  address: string,
+  businessName: string,
+  phone: string,
+  instagramUsername: string,
+  title: string
+) => {
+  return `Create a premium, professional REAL ESTATE ${category ? category.toUpperCase() : "LAND"} FOR ${listingType ? listingType.toUpperCase() : "SALE"} advertisement poster.
+
+Use the provided property information to automatically create the complete poster layout. Organize the information using strong visual hierarchy similar to a professional real-estate social media advertisement.
+
+DESIGN STYLE:
+- Premium modern real-estate advertisement
+- Clean, trustworthy and professional
+- Main colors: dark green, white and golden yellow
+- High-quality commercial poster design
+- Realistic property photography
+- Strong bold typography
+- Clean spacing and alignment
+- Instagram/social-media advertisement quality
+- Portrait poster format
+
+TOP SECTION:
+Place the real-estate company logo and company name prominently at the top-left.
+Below the company name, include a short tagline such as: "Your Dream Plot, Your Future Home!"
+Add a small premium "REAL ESTATE" badge at the top-right.
+
+PROPERTY HERO SECTION:
+Use a large realistic photograph of the actual type of property being advertised.
+For land/plot properties, show:
+- Clean residential plot
+- Developed road
+- Green surroundings
+- Trees and natural environment
+- Clear blue sky
+- Premium residential neighborhood appearance
+The property image should occupy approximately 50–60% of the upper poster.
+Create a modern curved/diagonal graphic separation between the text area and property image.
+
+MAIN PROPERTY HEADLINE:
+Display the most important property information in VERY LARGE bold typography.
+Example:
+"${budget ? budget.toUpperCase() : "2400 SQ.FT"}
+${category ? category.toUpperCase() : "SOUTH FACING LAND"}"
+Add a large yellow/gold banner underneath containing:
+"FOR ${listingType ? listingType.toUpperCase() : "SALE"}"
+
+LOCATION:
+Create a dark-green rounded location banner with a location-pin icon.
+Display:
+"${address ? address.toUpperCase() : "KK NAGAR, TRICHY"}"
+
+PROPERTY SUMMARY SECTION:
+Below the hero image create a clean white section.
+Headline:
+"PRIME ${budget ? budget.toUpperCase() : "2400 SQ.FT"} ${category ? category.toUpperCase() : "SOUTH-FACING PLOT"}"
+Subtitle:
+"Ideal for Residential Construction"
+Create 4 clean feature cards/icons horizontally.
+CARD 1:
+Property Size
+"${budget ? budget.toUpperCase() : "2400 SQ.FT"}"
+CARD 2:
+Facing Direction
+"SOUTH FACING"
+CARD 3:
+Prime Location
+"${address ? address : "KK Nagar – EB Colony Central, Trichy"}"
+CARD 4:
+Property Purpose
+"IDEAL FOR Residential Construction"
+Use simple premium dark-green line icons for each feature.
+
+CONTACT SECTION:
+Create a strong dark-green and golden-yellow contact banner near the bottom.
+Include a phone icon.
+Display:
+"CONTACT US"
+Make the phone number extremely prominent and easy to read.
+Also include available social-media information such as:
+Instagram username: "${instagramUsername ? "@" + instagramUsername : ""}"
+
+If video/reel information is provided, add a small badge such as:
+"1 REEL AVAILABLE"
+
+BOTTOM TAGLINE:
+Add an elegant handwritten/script-style tagline:
+"Right Location. Right Choice. Bright Future."
+
+PROPERTY INFORMATION:
+Company Name: ${businessName ? businessName.toUpperCase() : "FIND YOUR DREAM"}
+Tagline: Your Dream Plot, Your Future Home!
+Property Type: ${category ? category.toUpperCase() : "LAND"}
+Property Size: ${budget ? budget : "2400 SQ.FT"}
+Facing: SOUTH FACING
+Location: ${address ? address : "KK Nagar – EB Colony Central, Trichy"}
+City: Trichy
+Purpose: RESIDENTIAL
+Phone Number: ${phone ? phone : "8072455408"}
+Instagram: ${instagramUsername ? instagramUsername : ""}
+
+OUTPUT:
+Create one finished, ready-to-post professional real-estate advertising poster, not a template, wireframe, JSON, or text description.`;
+};
+
 export const generatePoster = async (req: Request, res: Response) => {
-  const { businessName, title, category, budget, address, phone, description, instagramUsername, listingType } = req.body;
-
-  if (!process.env.GEMINI_API_KEY) {
-    return res.status(500).json({ success: false, message: "GEMINI_API_KEY not configured" });
-  }
-
-  const CREATIVE_DIRECTOR_PROMPT = `You are an expert AI creative director and professional real-estate advertisement designer.
-
-Your task is to transform the REAL ESTATE INFORMATION provided by the user into a complete, visually powerful, professional real-estate advertisement poster.
-
-There will be NO reference poster.
-
-Every request may contain completely different information. Analyze the supplied content first and dynamically decide the best poster design.
-
-## CONTENT ANALYSIS
-
-Understand the supplied information and automatically identify:
-* Project / Property Name
-* Property Type
-* Price / Starting Price / Rent
-* BHK
-* Plot or Property Size
-* Location
-* Important Landmark
-* Main Selling Point
-* Special Offer / Discount
-* Amenities
-* Nearby Places
-* Approval Information
-* Loan / Finance Information
-* Contact Information
-* Address
-* Any other useful property information
-
-Do NOT require all of these fields.
-Different advertisements may contain completely different information.
-Never invent missing property information.
-
-## VISUAL PRIORITY
-
-Determine the visual hierarchy automatically.
-The most commercially important information must receive the strongest visual emphasis.
-
-## DYNAMIC DESIGN
-
-Do NOT use one fixed template for every advertisement.
-Create the layout dynamically based on the supplied information.
-
-## PROPERTY VISUAL
-
-Generate a suitable photorealistic hero visual based on the property information.
-
-Residential Plot: Show a premium plotted development, internal roads, landscaping, entrance gate and infrastructure.
-Villa: Show an elegant modern villa or villa community.
-Apartment: Show a premium residential apartment development.
-Commercial Property: Show a professional commercial building.
-
-## DESIGN QUALITY
-
-Create a premium commercial real-estate advertisement.
-Choose an appropriate color palette based on the property positioning.
-Luxury → dark premium tones + metallic accents.
-Affordable housing → clean, bright, trustworthy colors.
-Plots / land → green, blue and natural tones.
-
-## TEXT ACCURACY
-
-This is extremely important. Preserve EXACTLY:
-* Project names
-* Prices
-* Phone numbers
-* Locations
-* Measurements
-* Offers
-* Approval names
-* Addresses
-
-Make important text large and readable.
-
-## FINAL OUTPUT
-
-Generate a FINISHED REAL-ESTATE ADVERTISEMENT POSTER IMAGE.
-Vertical portrait advertisement. Suitable for Instagram, Facebook, WhatsApp.
-High-resolution professional commercial design.
-
----
-
-REAL ESTATE INFORMATION:
-
-- Project / Business Name: ${businessName || ""}
-- Property Title: ${title || ""}
-- Property Type: ${category || ""}
-- Price / Budget: ${budget || ""}
-- Location / Address: ${address || ""}
-- Contact Phone: ${phone || ""}
-- Description / Highlights: ${description || ""}
-- Listing Type: For ${listingType || "Sale"}
-${instagramUsername ? `- Instagram: @${instagramUsername}` : ""}`;
+  const {
+    title,
+    category,
+    address,
+    referenceImage,
+    businessName,
+    phone,
+    instagramUsername,
+    budget,
+    listingType,
+    description
+  } = req.body;
 
   try {
-    if (!process.env.GEMINI_API_KEY) {
-      return res.status(500).json({ success: false, message: "GEMINI_API_KEY not configured in .env" });
+    let designStyle = IMAGE2_DEFAULT_STYLE;
+    if (referenceImage) {
+      const analyzed = await analyzeReferencePoster(referenceImage);
+      if (analyzed) designStyle = analyzed;
     }
 
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-image" });
+    const planResult = await generateDesignPlan(
+      title || "",
+      category || "Real Estate",
+      address || "",
+      designStyle
+    );
 
-    const result = await model.generateContent({
-      contents: [{ role: "user", parts: [{ text: CREATIVE_DIRECTOR_PROMPT }] }],
-      generationConfig: { responseModalities: ["IMAGE", "TEXT"] } as any,
-    });
+    let visualPrompt = planResult?.visualPrompt || IMAGE2_DEFAULT_VISUAL_PROMPT;
+    const designPlan = planResult?.designPlan || IMAGE2_DEFAULT_DESIGN_PLAN;
 
-    const candidate = result.response.candidates?.[0];
-    if (!candidate) {
-      return res.status(500).json({ success: false, message: "Gemini returned no candidates" });
+    // Clean up visualPrompt by removing newlines and carriage returns to prevent Cloudflare/WAF CRLF blocking (404/403)
+    visualPrompt = visualPrompt.replace(/[\r\n]+/g, " ").trim();
+
+    const url = `https://image.pollinations.ai/p/${encodeURIComponent(visualPrompt)}?width=1080&height=1350&nologo=true&model=flux`;
+    console.log(`[Pollinations AI] Generating dynamic poster...`);
+
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Pollinations AI returned status ${response.status}: ${response.statusText}`);
     }
 
-    // Find image part in response
-    const imagePart = candidate.content?.parts?.find((p: any) => p.inlineData?.mimeType?.startsWith("image/"));
-    if (!imagePart || !(imagePart as any).inlineData) {
-      return res.status(500).json({ success: false, message: "Gemini did not return an image. The model may not support image generation on this API key tier." });
-    }
+    const arrayBuffer = await response.arrayBuffer();
+    const base64 = Buffer.from(arrayBuffer).toString("base64");
 
-    const { mimeType, data } = (imagePart as any).inlineData;
     return res.json({
       success: true,
-      dataUrl: `data:${mimeType};base64,${data}`,
+      dataUrl: `data:image/jpeg;base64,${base64}`,
+      designPlan,
+      visualPrompt,
     });
   } catch (error: any) {
+    console.error("[Poster Generation] Failed:", error.message);
     return res.status(500).json({
       success: false,
-      message: "Gemini image generation failed",
+      message: "Poster generation failed. Please check server network connection.",
       error: error.message,
     });
   }

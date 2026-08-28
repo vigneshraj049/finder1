@@ -310,3 +310,180 @@ Return valid JSON with keys: title, description, city, local_area, contactPhone,
     listingType: /rent|lease|வாடகை|வாடகைக்கு|குத்தகை/i.test(mergedData.rawCaption || "") ? "Rent" : "Sale",
   };
 };
+
+// Analyze design reference poster using Gemini Vision
+export const analyzeReferencePoster = async (
+  referenceImageBase64: string,
+  retries = 2
+): Promise<string> => {
+  if (!referenceImageBase64) return "";
+
+  // Strip prefix if present (e.g. data:image/png;base64,...)
+  let mimeType = "image/png";
+  let data = referenceImageBase64;
+  const matches = referenceImageBase64.match(/^data:([a-zA-Z0-9-\/+]+);base64,(.+)$/);
+  if (matches && matches.length === 3) {
+    mimeType = matches[1] as string;
+    data = matches[2] as string;
+  }
+
+  const prompt = `You are an expert graphic design analysis assistant.
+Analyze the design style of this real estate poster image. Describe its:
+1. Overall layout and visual structure (e.g., solid top header, large central visual area, footer card block)
+2. Color palette (e.g., dark green, gold accents, white cards)
+3. Card/badge styling (e.g., rounded pills, semi-translucent cards, gold outlined boxes)
+4. Decorative borders or lines (e.g., dual gold lines, slanted banner box, thin glowing gold borders)
+5. Overall marketing aesthetic (e.g., luxury corporate, modern minimalist, vibrant high-energy)
+
+Do NOT extract or mention any text content from the image, such as names, phone numbers, prices, or locations. Focus entirely on the design language. Write a concise description (max 60 words) that can guide an AI image generator to reproduce a background template with a similar design style and layout structure.`;
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${geminiApiKey}`;
+
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              { text: prompt },
+              { inlineData: { mimeType, data } }
+            ]
+          }],
+          generationConfig: { temperature: 0.2 },
+        }),
+      });
+
+      if (!response.ok) {
+        if (attempt < retries) {
+          await sleep(attempt * 1000);
+          continue;
+        }
+        break;
+      }
+
+      const resData = await response.json();
+      const text = resData?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (text) {
+        return text.trim();
+      }
+    } catch (error) {
+      if (attempt < retries) await sleep(attempt * 1000);
+    }
+  }
+
+  return "";
+};
+
+export interface DesignPlan {
+  colors: {
+    primaryBg: string;
+    cardBg: string;
+    textPrimary: string;
+    textSecondary: string;
+    accentColor: string;
+    borderGold: string;
+    featureBadgeBg: string;
+  };
+  typography: {
+    titleSize: number;
+    descSize: number;
+    priceSize: number;
+    ctaSize: number;
+  };
+  highlights: string[];
+}
+
+export interface DesignPlanResponse {
+  visualPrompt: string;
+  designPlan: DesignPlan;
+}
+
+export const generateDesignPlan = async (
+  title: string,
+  category: string,
+  address: string,
+  designStyle?: string,
+  retries = 2
+): Promise<DesignPlanResponse | null> => {
+  const prompt = `You are an expert real-estate graphic designer.
+Analyze the following listing details from our database:
+Title: "${title}"
+Category: "${category}"
+Address: "${address}"
+
+Tasks:
+1. Extract 2 to 4 key highlights present in the title or description that should be visually emphasized on the poster (e.g. "2400 SQ.FT", "SOUTH FACING", "LAND", "FOR SALE"). Only extract real details from the listing. Do NOT invent any features (like DTCP/RERA approvals or amenities) if they are not in the listing details.
+2. Choose a premium real-estate color palette inspired by the description or reference style.
+3. Write a visual-only image generation prompt for Pollinations AI (Flux) to create a beautiful, high-resolution real estate photograph of the property (no flyer elements, no header band, no footer strip, no gold border frames, no card overlays, no text, no logos).
+   DEFAULT STYLE TARGET: A professional, award-winning architectural real estate photograph of the property (scenic vacant land plot or modern residential building depending on category, bright lighting, natural colors). No text or logos in the visual.
+   CRITICAL CATEGORY VISUAL RULES:
+   - If the category is Land/Plot (or similar keywords like 'plot', 'land', 'site', 'மனை', 'மனைகள்'), the prompt MUST feature ONLY a vacant residential land plot with clean boundary lines, asphalt road, green grass, trees, and a pleasant sky. Under no circumstances should the prompt include commercial buildings, office towers, apartment buildings, skyscrapers, or structures.
+   - If the category is Villa/House, the prompt must feature a modern residential villa.
+   - If the category is Apartment/Flat, the prompt must feature a modern apartment building.
+   - If the category is Commercial, the prompt must feature a professional office/commercial front.
+   Ensure there are no text characters, letters, numbers, or logos generated in the visual.
+
+${designStyle ? `Use the following reference design style guidelines: ${designStyle}` : ""}
+
+Respond STRICTLY with a JSON object in this format (no markdown formatting, no other text):
+{
+  "visualPrompt": "string (the visual-only image generation prompt)",
+  "designPlan": {
+    "colors": {
+      "primaryBg": "string (hex color, e.g. #062f21)",
+      "cardBg": "string (rgba color for translucent card, e.g. rgba(10, 25, 20, 0.85))",
+      "textPrimary": "string (hex color, e.g. #ffffff)",
+      "textSecondary": "string (hex color, e.g. #ffe082)",
+      "accentColor": "string (hex color, e.g. #facc15)",
+      "borderGold": "string (hex color, e.g. #d4af37)",
+      "featureBadgeBg": "string (rgba color, e.g. rgba(212, 175, 55, 0.15))"
+    },
+    "typography": {
+      "titleSize": number (font size in px between 30 and 44),
+      "descSize": number (font size in px between 18 and 26),
+      "priceSize": number (font size in px between 28 and 38),
+      "ctaSize": number (font size in px between 16 and 24)
+    },
+    "highlights": ["string", "string"]
+  }
+}`;
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`;
+
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.1,
+            responseMimeType: "application/json"
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        if (attempt < retries) {
+          await sleep(attempt * 1000);
+          continue;
+        }
+        break;
+      }
+
+      const resData = await response.json();
+      const text = resData?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (text) {
+        return JSON.parse(text.trim());
+      }
+    } catch (error) {
+      console.error(`Gemini design plan attempt ${attempt} failed:`, error);
+      if (attempt < retries) await sleep(attempt * 1000);
+    }
+  }
+
+  return null;
+};
