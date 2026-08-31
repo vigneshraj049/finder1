@@ -33,7 +33,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { getAllRealProperties, RealProperty, publishToInstagram, saveInstagramDraft, API_BASE } from "@/lib/realApi";
+import { getAllRealProperties, RealProperty, publishToInstagram, saveInstagramDraft, API_BASE, BACKEND_URL } from "@/lib/realApi";
 import { getPosts } from "@/lib/adminApi";
 import { truncate } from "@/lib/format";
 
@@ -529,7 +529,7 @@ function AdminImages() {
       let initialImageSrc = firstListingImage || defaultStockPhoto;
       if (initialImageSrc && !initialImageSrc.startsWith("http")) {
         const cleanPath = initialImageSrc.startsWith("/") ? initialImageSrc.slice(1) : initialImageSrc;
-        initialImageSrc = `http://localhost:5000/${cleanPath}`;
+        initialImageSrc = `${BACKEND_URL}/${cleanPath}`;
       }
       setHasListingMedia(!!firstListingImage);
       setSelectedImage(initialImageSrc);
@@ -673,7 +673,7 @@ ${hashtags}`;
       let imageSrc = selectedImage;
       if (selectedImage && selectedImage.startsWith("http") && !selectedImage.includes("localhost") && !selectedImage.includes("127.0.0.1")) {
         try {
-          const proxyRes = await fetch(`http://localhost:5000/api/instagram/proxy-image?url=${encodeURIComponent(selectedImage)}`);
+          const proxyRes = await fetch(`${API_BASE}/instagram/proxy-image?url=${encodeURIComponent(selectedImage)}`);
           const proxyData = await proxyRes.json();
           if (proxyData.success && proxyData.dataUrl) {
             imageSrc = proxyData.dataUrl;
@@ -1585,7 +1585,7 @@ ${hashtags}`;
                 <div className="w-full max-w-[340px] aspect-[4/5] rounded-lg border border-border shadow-sm overflow-hidden relative select-none bg-slate-950 flex items-center justify-center">
 
                   {activePreviewSlide === 0 ? (
-                    <img src="http://localhost:5000/uploads/brand_welcome.png" alt="Slide 1: Welcome Branding" className="w-full h-full object-cover" />
+                    <img src={`${BACKEND_URL}/uploads/brand_welcome.png`} alt="Slide 1: Welcome Branding" className="w-full h-full object-cover" />
                   ) : activePreviewSlide === 1 ? (
                     selectedImage ? (
                       <img src={selectedImage} alt="Slide 2: Original Listing Photo" className="w-full h-full object-cover" />
