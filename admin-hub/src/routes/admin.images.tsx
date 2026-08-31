@@ -33,7 +33,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { getAllRealProperties, RealProperty, publishToInstagram, saveInstagramDraft } from "@/lib/realApi";
+import { getAllRealProperties, RealProperty, publishToInstagram, saveInstagramDraft, API_BASE } from "@/lib/realApi";
 import { getPosts } from "@/lib/adminApi";
 import { truncate } from "@/lib/format";
 
@@ -427,7 +427,7 @@ function AdminImages() {
       });
 
       // Query the backend generatePoster endpoint to paint the design template
-      const res = await fetch("http://localhost:5000/api/instagram/generate-poster", {
+      const res = await fetch(`${API_BASE}/instagram/generate-poster`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -717,7 +717,7 @@ ${hashtags}`;
 
         if (!activeDesignPlan || (selectedTemplate === "full_ai_poster" && !activeAiBackgroundUrl)) {
           toast.loading("AI is building your complete real estate poster...", { id: "poster-gen" });
-          const geminiRes = await fetch("http://localhost:5000/api/instagram/generate-poster", {
+          const geminiRes = await fetch(`${API_BASE}/instagram/generate-poster`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
