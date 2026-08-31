@@ -4,6 +4,7 @@ import { runInstagramScraper, runReelScraper } from "../services/apify.service";
 import { performRegexExtraction, extractFromImageOCR, extractFromVideoOCR, normalizeListingData } from "../services/gemini.service";
 import { findOrCreateBusiness } from "../services/business.service";
 import { extractEmailFromWebsite, extractAddressFromCaption, extractWebsite } from "../utils/extractInfo";
+import { uploadRemoteImageToImageKit } from "../services/imagekit.service";
 
 const normalizeText = (text: string | null | undefined): string => {
   if (!text) return "";
@@ -401,6 +402,19 @@ export const startScraper = async (
           targetPropertyId = propertyResult.rows[0].id;
         }
 
+        // Upload media_url to ImageKit at scrape time so it never expires
+        let persistentMediaUrl: string | null = item.media_url || null;
+        if (persistentMediaUrl && persistentMediaUrl.startsWith("http") && !persistentMediaUrl.includes("ik.imagekit.io")) {
+          try {
+            const ikFilename = `scraped_media_${targetPropertyId}_${Date.now()}.jpg`;
+            persistentMediaUrl = await uploadRemoteImageToImageKit(persistentMediaUrl, ikFilename, "/scraped-media");
+            console.log(`[Scraper] Uploaded media to ImageKit: ${persistentMediaUrl}`);
+          } catch (ikErr: any) {
+            console.warn(`[Scraper] Failed to upload media_url to ImageKit, keeping original: ${ikErr.message}`);
+            // Keep original CDN URL as fallback
+          }
+        }
+
         // Insert or update social content linked to targetPropertyId
         await pool.query(
           `INSERT INTO social_contents
@@ -421,7 +435,7 @@ export const startScraper = async (
             item.media_type,
             item.content_url,
             item.caption || null,
-            item.media_url || null,
+            persistentMediaUrl || null,
             item.video_url || null,
             Array.isArray(item.hashtags) ? item.hashtags : [],
             item.timestamp || null,

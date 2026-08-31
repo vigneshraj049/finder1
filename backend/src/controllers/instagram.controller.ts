@@ -389,6 +389,64 @@ export const proxyImage = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * Refresh expired Instagram CDN media_urls for a property by re-uploading to ImageKit.
+ * POST /api/instagram/refresh-media  { propertyId }
+ */
+export const refreshMedia = async (req: Request, res: Response) => {
+  const { propertyId } = req.body;
+  if (!propertyId) {
+    return res.status(400).json({ success: false, message: "Missing propertyId" });
+  }
+
+  try {
+    // Get all social_contents for this property where media_url is a non-ImageKit URL
+    const result = await pool.query(
+      `SELECT id, media_url FROM social_contents WHERE property_id = $1 AND media_url IS NOT NULL`,
+      [propertyId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.json({ success: true, message: "No media to refresh.", refreshed: 0 });
+    }
+
+    let refreshed = 0;
+    let failed = 0;
+
+    for (const row of result.rows) {
+      const mediaUrl: string = row.media_url;
+      // Skip already-uploaded ImageKit URLs
+      if (mediaUrl.includes("ik.imagekit.io")) {
+        refreshed++;
+        continue;
+      }
+
+      try {
+        const filename = `refreshed_media_${propertyId}_${row.id}_${Date.now()}.jpg`;
+        const ikUrl = await uploadRemoteImageToImageKit(mediaUrl, filename, "/scraped-media");
+        await pool.query(
+          `UPDATE social_contents SET media_url = $1 WHERE id = $2`,
+          [ikUrl, row.id]
+        );
+        refreshed++;
+        console.log(`[RefreshMedia] Updated social_content ${row.id} to ImageKit URL`);
+      } catch (err: any) {
+        console.warn(`[RefreshMedia] Failed for social_content ${row.id}: ${err.message}`);
+        failed++;
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: `Refreshed ${refreshed} media URLs. Failed: ${failed}.`,
+      refreshed,
+      failed,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: "Failed to refresh media", error: error.message });
+  }
+};
+
 // Generate Image 2 style marketing flyer background + design plan using Gemini + Pollinations Flux
 const buildAiPosterPrompt = (
   category: string,

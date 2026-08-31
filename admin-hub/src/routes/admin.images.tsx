@@ -545,8 +545,28 @@ function AdminImages() {
             if (d.success && d.dataUrl) {
               setSelectedImage(d.dataUrl);
             } else {
-              // CDN URL expired — prompt user to upload a custom photo
-              toast.warning("Original listing photo has expired. Please upload a custom photo below.", { duration: 5000 });
+              // CDN URL expired — auto-heal: re-upload to ImageKit in background
+              toast.loading("Refreshing listing photo...", { id: "refresh-media" });
+              fetch(`${API_BASE}/instagram/refresh-media`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ propertyId: selectedProperty.id }),
+              })
+                .then((r) => r.json())
+                .then((rd) => {
+                  if (rd.success && rd.refreshed > 0) {
+                    toast.success("Listing photo refreshed! Reloading...", { id: "refresh-media" });
+                    // Re-fetch the updated media URL from DB by reloading the query
+                    setTimeout(() => window.location.reload(), 1500);
+                  } else {
+                    toast.dismiss("refresh-media");
+                    toast.warning("Original listing photo has expired. Please upload a custom photo below.", { duration: 5000 });
+                  }
+                })
+                .catch(() => {
+                  toast.dismiss("refresh-media");
+                  toast.warning("Could not refresh listing photo. Please upload a custom photo below.", { duration: 5000 });
+                });
             }
           })
           .catch(() => {
