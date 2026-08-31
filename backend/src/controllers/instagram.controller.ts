@@ -162,12 +162,16 @@ export const publishPost = async (req: Request, res: Response) => {
   }
 
   // Create carousel URLs array: Welcome branding first, Listing image second, Flyer poster third
-  const carouselImages = [
-    ...(welcomeUrl ? [welcomeUrl] : []),
-    ...(originalImages.length > 0 ? [originalImages[0]] : []),
-    publicImageUrl,
-    ...originalImages.slice(1, 4),
-  ];
+  const carouselImages: string[] = [];
+  if (welcomeUrl) {
+    carouselImages.push(welcomeUrl);
+  }
+  const firstOriginal = originalImages[0];
+  if (firstOriginal) {
+    carouselImages.push(firstOriginal);
+  }
+  carouselImages.push(publicImageUrl);
+  carouselImages.push(...originalImages.slice(1, 4));
 
   // ── 3. Now mark as Publishing ────────────────────────────────────────────────
   await pool.query(
