@@ -532,7 +532,30 @@ function AdminImages() {
         initialImageSrc = `${BACKEND_URL}/${cleanPath}`;
       }
       setHasListingMedia(!!firstListingImage);
-      setSelectedImage(initialImageSrc);
+
+      // Proxy Instagram CDN images through backend to avoid CORS/hotlink restrictions
+      if (
+        initialImageSrc &&
+        initialImageSrc.startsWith("http") &&
+        !initialImageSrc.includes("localhost") &&
+        !initialImageSrc.includes("127.0.0.1") &&
+        !initialImageSrc.startsWith("data:")
+      ) {
+        // Set a placeholder first, then proxy in background
+        setSelectedImage(initialImageSrc); // optimistic fallback
+        fetch(`${API_BASE}/instagram/proxy-image?url=${encodeURIComponent(initialImageSrc)}`)
+          .then((r) => r.json())
+          .then((d) => {
+            if (d.success && d.dataUrl) {
+              setSelectedImage(d.dataUrl);
+            }
+          })
+          .catch(() => {
+            // fallback already set above
+          });
+      } else {
+        setSelectedImage(initialImageSrc);
+      }
 
       const priceText = selectedProperty.budget ? `Price: ${selectedProperty.budget}` : "";
       const phoneText = selectedProperty.contact_phone ? `Contact: ${selectedProperty.contact_phone}` : "";
