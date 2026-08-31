@@ -4,7 +4,7 @@ import path from "path";
 import pool from "../config/database";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import OpenAI from "openai";
-import { uploadBase64Image } from "../services/imagekit.service";
+import { uploadBase64Image, uploadRemoteImageToImageKit } from "../services/imagekit.service";
 import {
   buildCaption,
   createMediaContainer,
@@ -161,17 +161,34 @@ export const publishPost = async (req: Request, res: Response) => {
     welcomeUrl = "";
   }
 
+  // Upload all needed original images to ImageKit so Meta Graph API can fetch them without permission/OAuth errors
+  const uploadedOriginalImages: string[] = [];
+  try {
+    const imagesToUpload = originalImages.slice(0, 4); // Only need up to 4 original images
+    console.log(`[Instagram Publish] Pre-uploading ${imagesToUpload.length} original scraped images to ImageKit...`);
+    const uploadPromises = imagesToUpload.map((url, idx) => {
+      const filename = `listing_original_${propertyId}_${idx}_${Date.now()}.jpg`;
+      return uploadRemoteImageToImageKit(url, filename);
+    });
+    const results = await Promise.all(uploadPromises);
+    uploadedOriginalImages.push(...results);
+  } catch (err: any) {
+    console.error("[Instagram Publish] Failed to pre-upload original images to ImageKit:", err.message);
+    // Fallback to original URLs to at least try publishing
+    uploadedOriginalImages.push(...originalImages.slice(0, 4));
+  }
+
   // Create carousel URLs array: Welcome branding first, Listing image second, Flyer poster third
   const carouselImages: string[] = [];
   if (welcomeUrl) {
     carouselImages.push(welcomeUrl);
   }
-  const firstOriginal = originalImages[0];
+  const firstOriginal = uploadedOriginalImages[0];
   if (firstOriginal) {
     carouselImages.push(firstOriginal);
   }
   carouselImages.push(publicImageUrl);
-  carouselImages.push(...originalImages.slice(1, 4));
+  carouselImages.push(...uploadedOriginalImages.slice(1));
 
   // ── 3. Now mark as Publishing ────────────────────────────────────────────────
   await pool.query(

@@ -71,3 +71,40 @@ export const uploadBase64Image = async (
   console.log(`[ImageKit] Upload complete: ${publicUrl}`);
   return publicUrl;
 };
+
+/**
+ * Download a remote image URL and upload it to ImageKit.
+ * This bypasses CORS and permission issues on third-party CDNs (like Instagram).
+ */
+export const uploadRemoteImageToImageKit = async (
+  remoteUrl: string,
+  filename: string,
+  folder = "/real-estate-posters"
+): Promise<string> => {
+  if (!remoteUrl) {
+    throw new Error("Invalid remote URL provided.");
+  }
+
+  try {
+    console.log(`[ImageKit] Fetching remote image on backend: ${remoteUrl}`);
+    const response = await fetch(remoteUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch image from CDN: ${response.statusText}`);
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const contentType = response.headers.get("content-type") || "image/jpeg";
+    const base64DataUrl = `data:${contentType};base64,${buffer.toString("base64")}`;
+
+    return await uploadBase64Image(base64DataUrl, filename, folder);
+  } catch (error: any) {
+    console.error(`[ImageKit] Failed to upload remote image ${remoteUrl}:`, error.message);
+    throw error;
+  }
+};
