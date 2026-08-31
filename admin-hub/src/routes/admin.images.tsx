@@ -519,42 +519,42 @@ function AdminImages() {
         listingType: selectedProperty.listing_type || "Sale",
       });
 
-      // Try to find the first scraped listing image from the property media items or draft image url
-      const firstListingImage = selectedProperty.media_items?.find(
+      // Image priority:
+      // 1. instagram_draft_image_url (ImageKit - permanent, never expires)
+      // 2. thumbnail_url (may be expired CDN)
+      // 3. media_items media_url (may be expired CDN)
+      // 4. default stock photo
+      const draftImageUrl = selectedProperty.instagram_draft_image_url;
+      const cdnImage = selectedProperty.media_items?.find(
         (m: any) => m.media_type !== "reel" && !m.video_url && m.media_url
-      )?.media_url || selectedProperty.thumbnail_url || selectedProperty.instagram_draft_image_url;
+      )?.media_url || selectedProperty.thumbnail_url;
 
-      const defaultStockPhoto = "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=800&h=800&q=80";
+      const defaultStockPhoto2 = "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=800&h=800&q=80";
 
-      let initialImageSrc = firstListingImage || defaultStockPhoto;
-      if (initialImageSrc && !initialImageSrc.startsWith("http")) {
-        const cleanPath = initialImageSrc.startsWith("/") ? initialImageSrc.slice(1) : initialImageSrc;
-        initialImageSrc = `${BACKEND_URL}/${cleanPath}`;
-      }
-      setHasListingMedia(!!firstListingImage);
-
-      // Proxy Instagram CDN images through backend to avoid CORS/hotlink restrictions
-      if (
-        initialImageSrc &&
-        initialImageSrc.startsWith("http") &&
-        !initialImageSrc.includes("localhost") &&
-        !initialImageSrc.includes("127.0.0.1") &&
-        !initialImageSrc.startsWith("data:")
-      ) {
-        // Set a placeholder first, then proxy in background
-        setSelectedImage(initialImageSrc); // optimistic fallback
-        fetch(`${API_BASE}/instagram/proxy-image?url=${encodeURIComponent(initialImageSrc)}`)
+      // If we have a permanent ImageKit URL from a saved draft, use it directly
+      if (draftImageUrl && draftImageUrl.startsWith("http")) {
+        setSelectedImage(draftImageUrl);
+        setHasListingMedia(true);
+      } else if (cdnImage) {
+        // CDN image may be expired — proxy it through backend and fallback gracefully
+        setHasListingMedia(true);
+        setSelectedImage(defaultStockPhoto2); // show stock photo while proxying
+        fetch(`${API_BASE}/instagram/proxy-image?url=${encodeURIComponent(cdnImage)}`)
           .then((r) => r.json())
           .then((d) => {
             if (d.success && d.dataUrl) {
               setSelectedImage(d.dataUrl);
+            } else {
+              // CDN URL expired — prompt user to upload a custom photo
+              toast.warning("Original listing photo has expired. Please upload a custom photo below.", { duration: 5000 });
             }
           })
           .catch(() => {
-            // fallback already set above
+            toast.warning("Could not load listing photo. Please upload a custom photo below.", { duration: 5000 });
           });
       } else {
-        setSelectedImage(initialImageSrc);
+        setHasListingMedia(false);
+        setSelectedImage(defaultStockPhoto2);
       }
 
       const priceText = selectedProperty.budget ? `Price: ${selectedProperty.budget}` : "";
