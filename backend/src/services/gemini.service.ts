@@ -185,7 +185,7 @@ export const normalizeListingData = async (
   mergedData: any,
   retries = 2
 ): Promise<ExtractedListing> => {
-  
+
   const prompt = `You are an expert real estate data normalizer for Indian property listings.
 You are given a raw merged data object from our Parallel Data Pipeline (containing regex data, image OCR data, video thumbnail OCR data, and website scraper data).
 Your job is to normalize this into a final clean JSON object by intelligently picking the best available contact information and extracting the property details.
@@ -251,7 +251,7 @@ Return valid JSON with keys: title, description, city, local_area, contactPhone,
           if (phone.length > 10) phone = phone.slice(0, 10); // Keep only first 10 digits
         }
       }
-      
+
       const fallbackEmail = mergedData.rawEmail || mergedData.agent1_websiteData || mergedData.agent2_imageData?.contactEmail || mergedData.agent3_videoData?.contactEmail || "NA";
       const fallbackBudget = mergedData.rawBudget || mergedData.agent2_imageData?.budgetText || mergedData.agent3_videoData?.budgetText || "NA";
 
@@ -405,24 +405,27 @@ export const generateDesignPlan = async (
   category: string,
   address: string,
   designStyle?: string,
-  retries = 2
+  retries = 2,
+  description = ""
 ): Promise<DesignPlanResponse | null> => {
   const prompt = `You are an expert real-estate graphic designer.
 Analyze the following listing details from our database:
 Title: "${title}"
 Category: "${category}"
 Address: "${address}"
+Description: "${description}"
 
 Tasks:
-1. Extract 2 to 4 key highlights present in the title or description that should be visually emphasized on the poster (e.g. "2400 SQ.FT", "SOUTH FACING", "LAND", "FOR SALE"). Only extract real details from the listing. Do NOT invent any features (like DTCP/RERA approvals or amenities) if they are not in the listing details.
+1. Extract 2 to 4 key highlights present in the title OR description that should be visually emphasized on the poster (e.g. "2400 SQ.FT", "SOUTH FACING", "LAND", "FOR SALE"). Only extract real details from the listing. Do NOT invent any features (like DTCP/RERA approvals or amenities) if they are not in the listing details.
 2. Choose a premium real-estate color palette inspired by the description or reference style.
 3. Write a visual-only image generation prompt for Pollinations AI (Flux) to create a beautiful, high-resolution real estate photograph of the property (no flyer elements, no header band, no footer strip, no gold border frames, no card overlays, no text, no logos).
-   DEFAULT STYLE TARGET: A professional, award-winning architectural real estate photograph of the property (scenic vacant land plot or modern residential building depending on category, bright lighting, natural colors). No text or logos in the visual.
+   DEFAULT STYLE TARGET: A professional, award-winning architectural real estate photograph of the property. The image must look 100% photorealistic, captured on a DSLR camera with a wide-angle lens, sharp focus, natural daylight, realistic textures, and look like a real physical site. Absolutely avoid any CGI, 3D render, cartoonish style, illustration, digital painting, or game asset look.
    CRITICAL CATEGORY VISUAL RULES:
-   - If the category is Land/Plot (or similar keywords like 'plot', 'land', 'site', 'மனை', 'மனைகள்'), the prompt MUST feature ONLY a vacant residential land plot with clean boundary lines, asphalt road, green grass, trees, and a pleasant sky. Under no circumstances should the prompt include commercial buildings, office towers, apartment buildings, skyscrapers, or structures.
+   - If the title, category, or description contains the word "commercial" along with "plot", "land", "site", or "மனை", the prompt MUST feature a vacant commercial land site situated next to a realistic asphalt main road or highway, with streetlights, clear plot boundaries, and other commercial buildings or light industry visible in the far background. No dense forests or tree-lined residential parks.
+   - If the category is Land/Plot (but not commercial), the prompt MUST feature a vacant residential plot of land prepared for home construction with a clean boundary, next to a local street, with natural grass, soil, and a pleasant sky.
    - If the category is Villa/House, the prompt must feature a modern residential villa.
    - If the category is Apartment/Flat, the prompt must feature a modern apartment building.
-   - If the category is Commercial, the prompt must feature a professional office/commercial front.
+   - If the category is Commercial (not a plot/land), the prompt must feature a professional office/commercial front.
    Ensure there are no text characters, letters, numbers, or logos generated in the visual.
 
 ${designStyle ? `Use the following reference design style guidelines: ${designStyle}` : ""}

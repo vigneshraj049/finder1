@@ -20,6 +20,7 @@ import {
   Info,
   Sparkles,
   ArrowLeft,
+  Video,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -141,9 +142,9 @@ const canvasDrawImageCover = (
   ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
 };
 
-const extractFlyerHighlights = (description: string, title: string, designPlan?: any): string[] => {
+const extractFlyerHighlights = (description: string, title: string, designPlan?: any, budget?: string): string[] => {
   if (designPlan?.highlights?.length > 0) return designPlan.highlights;
-  const text = `${title} ${description}`.toUpperCase();
+  const text = `${title} ${description} ${budget || ""}`.toUpperCase();
   const highlights: string[] = [];
   const sqftMatch = text.match(/(\d[\d,]*)\s*(SQ\.?\s*FT|SQFT|சதுர\s*அடி)/i);
   if (sqftMatch) highlights.push(`${sqftMatch[1]} SQ.FT`);
@@ -175,10 +176,13 @@ const drawImage2MarketingFlyer = (
     borderGold: designPlan?.colors?.borderGold || "#d4af37",
   };
 
-  const highlights = extractFlyerHighlights(formValues.description, formValues.title, designPlan);
-  const sizeHighlight = highlights.find(h => /SQ\.?FT|SQFT|சதுர/i.test(h)) || highlights[0] || "PREMIUM PROPERTY";
+  const highlights = extractFlyerHighlights(formValues.description, formValues.title, designPlan, formValues.budget);
   const facingHighlight = highlights.find(h => /FACING|SOUTH|NORTH|EAST|WEST/i.test(h)) || "";
   const typeHighlight = highlights.find(h => /LAND|PLOT|HOUSE|VILLA|APARTMENT|மனை/i.test(h)) || formValues.category.toUpperCase();
+  const sizeHighlight = highlights.find(h => /SQ\.?FT|SQFT|சதுர/i.test(h))
+    || (highlights[0] !== typeHighlight ? highlights[0] : null)
+    || (highlights[1] !== typeHighlight ? highlights[1] : null)
+    || "PREMIUM PROPERTY";
   const subHeadline = facingHighlight
     ? `${facingHighlight} ${typeHighlight}`.toUpperCase()
     : typeHighlight.toUpperCase();
@@ -203,7 +207,7 @@ const drawImage2MarketingFlyer = (
   ctx.fillStyle = theme.borderGold;
   ctx.font = "bold 18px sans-serif";
   ctx.textAlign = "center";
-  ctx.fillText("LOGO", 100, 102);
+  ctx.fillText("NEARME", 100, 102);
 
   // Business name
   const nameGrad = ctx.createLinearGradient(175, 0, 700, 0);
@@ -276,20 +280,41 @@ const drawImage2MarketingFlyer = (
   ctx.font = "bold 42px sans-serif";
   ctx.fillText(subHeadline, 70, 870);
 
-  // Yellow FOR SALE banner (pointed ends)
-  const bannerY = 895, bannerH = 58;
+  // Yellow FOR SALE banner (pointed right end)
+  const bannerY = 895, bannerH = 58, bannerW = 300;
   ctx.fillStyle = theme.accentColor;
   ctx.beginPath();
   ctx.moveTo(60, bannerY);
-  ctx.lineTo(340, bannerY);
-  ctx.lineTo(355, bannerY + bannerH / 2);
-  ctx.lineTo(340, bannerY + bannerH);
+  ctx.lineTo(60 + bannerW, bannerY);
+  ctx.lineTo(60 + bannerW + 20, bannerY + bannerH / 2);
+  ctx.lineTo(60 + bannerW, bannerY + bannerH);
+  ctx.lineTo(60, bannerY + bannerH);
   ctx.closePath();
   ctx.fill();
-  ctx.fillStyle = "#000000";
-  ctx.font = "bold 26px sans-serif";
+
+  ctx.fillStyle = "#050b1a";
+  ctx.font = "900 28px sans-serif";
   ctx.textAlign = "center";
-  ctx.fillText(listingLabel, 200, bannerY + 38);
+  ctx.fillText(listingLabel.toUpperCase(), 60 + bannerW / 2, bannerY + 39);
+
+  // Dedicated Price Badge on the right side of the banner row
+  if (formValues.budget) {
+    const priceText = formValues.budget.toUpperCase();
+    ctx.font = "900 24px sans-serif";
+    const textWidth = ctx.measureText(priceText).width;
+    const badgeW = Math.max(textWidth + 40, 220);
+    const badgeX = 1020 - badgeW; // Align to the right side of the card/image edge (x = 1020)
+
+    ctx.fillStyle = theme.accentColor;
+    ctx.beginPath();
+    ctx.roundRect(badgeX, bannerY, badgeW, bannerH, 12);
+    ctx.fill();
+
+    ctx.fillStyle = "#050b1a";
+    ctx.font = "900 24px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(priceText, badgeX + badgeW / 2, bannerY + 39);
+  }
 
   // ── WHITE INFO CARD (y: 975–1185) ──
   const cardX = 60, cardY = 975, cardW = 960, cardH = 210;
@@ -301,11 +326,15 @@ const drawImage2MarketingFlyer = (
   ctx.lineWidth = 2;
   ctx.stroke();
 
+  const isCommercial = /commercial/i.test(formValues.title) || /commercial/i.test(formValues.description);
+  const idealText = isCommercial ? "Ideal for Commercial Dev." : "Ideal for Residential Const.";
+
   const infoRows = [
-    { icon: "■", label: sizeHighlight.toUpperCase() },
+    ...(formValues.budget ? [{ icon: "💰", label: formValues.budget.toUpperCase() }] : []),
+    ...(sizeHighlight && sizeHighlight !== "PREMIUM PROPERTY" && sizeHighlight !== "LAND" && sizeHighlight !== "HOUSE" ? [{ icon: "■", label: sizeHighlight.toUpperCase() }] : []),
     ...(facingHighlight ? [{ icon: "☀", label: facingHighlight.toUpperCase() }] : []),
     { icon: "📍", label: cleanText(formValues.address) || "Location" },
-    { icon: "🏗", label: "Ideal for Residential Construction" },
+    { icon: "🏗", label: idealText },
   ].slice(0, 4);
 
   infoRows.forEach((row, i) => {
@@ -370,14 +399,17 @@ function AdminImages() {
   });
 
   const [selectedImage, setSelectedImage] = useState<string>("https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=800&h=800&q=80");
+  const [selectedVideo, setSelectedVideo] = useState<string>("");
+  const [allListingMedia, setAllListingMedia] = useState<{ id?: number | string; url: string; isVideo: boolean }[]>([]);
   const [hasListingMedia, setHasListingMedia] = useState<boolean>(true);
-  const [selectedTemplate, setSelectedTemplate] = useState<string>("full_ai_poster");
+  const [selectedTemplate, setSelectedTemplate] = useState<string>("premium_flyer");
   const includeImage = true;
   const [caption, setCaption] = useState<string>("");
   const [generatedPoster, setGeneratedPoster] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [simulatePublish, setSimulatePublish] = useState<boolean>(false);
   const [customImages, setCustomImages] = useState<string[]>([]);
+  const [isPublishingReel, setIsPublishingReel] = useState<boolean>(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState<boolean>(false);
   const [aiPrompt, setAiPrompt] = useState<string>("");
   const [isGeneratingAiImage, setIsGeneratingAiImage] = useState<boolean>(false);
@@ -519,6 +551,28 @@ function AdminImages() {
         listingType: selectedProperty.listing_type || "Sale",
       });
 
+      // Extract video/reel URL if present
+      const reelMedia = selectedProperty.media_items?.find(
+        (m: any) => m.media_type === "reel" || m.video_url
+      );
+      setSelectedVideo(reelMedia ? (reelMedia.video_url || reelMedia.content_url || "") : "");
+
+      // Build the full list of all listing media (photos + reels)
+      const mediaList: { id?: number | string; url: string; isVideo: boolean }[] = [];
+      if (selectedProperty.media_items && selectedProperty.media_items.length > 0) {
+        for (const m of selectedProperty.media_items) {
+          if (m.media_type === "reel" || m.video_url) {
+            const vUrl = m.video_url || m.content_url;
+            if (vUrl) mediaList.push({ id: m.id, url: vUrl, isVideo: true });
+          } else {
+            const iUrl = m.media_url || m.content_url;
+            if (iUrl) mediaList.push({ id: m.id, url: iUrl, isVideo: false });
+          }
+        }
+      }
+      setAllListingMedia(mediaList);
+      setHasListingMedia(mediaList.length > 0);
+
       // Image priority:
       // 1. instagram_draft_image_url (ImageKit - permanent, never expires)
       // 2. thumbnail_url (may be expired CDN)
@@ -580,6 +634,7 @@ function AdminImages() {
       const priceText = selectedProperty.budget ? `Price: ${selectedProperty.budget}` : "";
       const phoneText = selectedProperty.contact_phone ? `Contact: ${selectedProperty.contact_phone}` : "";
       const locText = selectedProperty.address ? `📍 Location: ${selectedProperty.address}` : "";
+      const instagramText = selectedProperty.instagram_username ? `📱 Source: @${selectedProperty.instagram_username.replace(/^@/, "")}` : "";
       const hashtags = `#realestate #property #homeforsale #housing #investment #scrapehouse ${selectedProperty.property_type ? `#${selectedProperty.property_type.toLowerCase().replace(/\s+/g, "")}` : ""}`;
 
       const defaultCaption = `${selectedProperty.property_title || "New Property Available!"}
@@ -589,6 +644,7 @@ ${selectedProperty.description || ""}
 ${priceText}
 ${locText}
 ${phoneText}
+${instagramText}
 
 ${hashtags}`;
 
@@ -676,6 +732,7 @@ ${hashtags}`;
     const priceText = formValues.budget ? `Price: ${formValues.budget}` : "";
     const phoneText = formValues.phone ? `Contact: ${formValues.phone}` : "";
     const locText = formValues.address ? `📍 Location: ${formValues.address}` : "";
+    const instagramText = formValues.instagramUsername ? `📱 Source: @${formValues.instagramUsername.replace(/^@/, "")}` : "";
     const hashtags = `#realestate #property #homeforsale #housing #investment #scrapehouse ${formValues.category ? `#${formValues.category.toLowerCase().replace(/\s+/g, "")}` : ""}`;
 
     const newCaption = `${formValues.title || "New Property Available!"}
@@ -685,11 +742,70 @@ ${formValues.description || ""}
 ${priceText}
 ${locText}
 ${phoneText}
+${instagramText}
 
 ${hashtags}`;
 
     setCaption(newCaption);
     toast.success("Instagram Caption updated from form values.");
+  };
+
+  // Delete individual photo/reel from listing
+  const handleDeleteSingleMedia = async (media: { id?: number | string; url: string; isVideo: boolean }, idx: number) => {
+    // 1. Remove from local state immediately
+    setAllListingMedia((prev) => prev.filter((_, i) => i !== idx));
+    toast.success("Media item removed from listing.");
+
+    // 2. Call backend to remove from database social_contents table
+    try {
+      await fetch(`${API_BASE}/instagram/delete-media`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mediaId: media.id,
+          mediaUrl: media.url,
+          propertyId: selectedProperty?.id,
+        }),
+      });
+    } catch (err) {
+      console.warn("Could not sync media deletion with backend", err);
+    }
+  };
+
+  // Publish native Instagram Reel Video
+  const handlePublishReel = async () => {
+    if (!selectedProperty) return;
+    const vUrl = selectedVideo || allListingMedia.find((m) => m.isVideo)?.url;
+    if (!vUrl) {
+      toast.error("No Reel video found for this listing.");
+      return;
+    }
+
+    setIsPublishingReel(true);
+    toast.loading("Publishing Reel to Instagram...", { id: "reel-pub-toast" });
+
+    try {
+      const res = await fetch(`${API_BASE}/instagram/publish-reel`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          propertyId: selectedProperty.id,
+          caption,
+          videoUrl: vUrl,
+          simulate: simulatePublish,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "Reel publication failed.");
+      }
+      toast.success(data.message || "Reel published successfully!", { id: "reel-pub-toast" });
+    } catch (err: any) {
+      toast.error(err.message || "Reel publication failed.", { id: "reel-pub-toast" });
+    } finally {
+      setIsPublishingReel(false);
+    }
   };
 
   // High-Resolution 1080x1350px Canvas Generation
@@ -1627,24 +1743,63 @@ ${hashtags}`;
                 {/* 4:5 Scaled Card Frame (simulates 1080x1350) */}
                 <div className="w-full max-w-[340px] aspect-[4/5] rounded-lg border border-border shadow-sm overflow-hidden relative select-none bg-slate-950 flex items-center justify-center">
 
-                  {activePreviewSlide === 0 ? (
-                    <img src={`${BACKEND_URL}/uploads/brand_welcome.png`} alt="Slide 1: Welcome Branding" className="w-full h-full object-cover" />
-                  ) : activePreviewSlide === 1 ? (
-                    selectedImage ? (
+                  {activePreviewSlide === 1 ? (
+                    allListingMedia.length > 0 ? (
+                      <div className="w-full h-full bg-slate-900 overflow-y-auto flex flex-col p-1.5 gap-1.5">
+                        <div className="text-[9px] text-zinc-400 font-black uppercase tracking-widest text-center shrink-0 pb-0.5 border-b border-slate-700">
+                          {allListingMedia.length} Media Files · All will be posted
+                        </div>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {allListingMedia.map((media, idx) => (
+                            <div key={idx} className="relative aspect-square rounded overflow-hidden bg-slate-800 border border-slate-700 group">
+                              {media.isVideo ? (
+                                <>
+                                  <video src={media.url} muted playsInline className="w-full h-full object-cover" />
+                                  <div className="absolute inset-0 flex items-center justify-center bg-black/30 pointer-events-none">
+                                    <div className="w-6 h-6 rounded-full bg-white/80 flex items-center justify-center">
+                                      <div className="w-0 h-0 border-t-[5px] border-t-transparent border-b-[5px] border-b-transparent border-l-[9px] border-l-slate-900 ml-0.5" />
+                                    </div>
+                                  </div>
+                                  <div className="absolute top-1 left-1 bg-red-600 text-white text-[6px] font-bold px-1 py-0.5 rounded uppercase pointer-events-none">Reel</div>
+                                </>
+                              ) : (
+                                <img src={media.url} alt={`Media ${idx + 1}`} className="w-full h-full object-cover" />
+                              )}
+                              <div className="absolute bottom-0.5 left-0.5 bg-black/60 text-white text-[6px] px-1 rounded font-bold pointer-events-none">#{idx + 1}</div>
+
+                              {/* Delete button for removing duplicate/unwanted media */}
+                              <button
+                                type="button"
+                                title="Remove this media item"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteSingleMedia(media, idx);
+                                }}
+                                className="absolute top-1 right-1 bg-red-600 hover:bg-red-700 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow-md border border-white/40 transition-transform active:scale-90"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : selectedImage ? (
                       <img src={selectedImage} alt="Slide 2: Original Listing Photo" className="w-full h-full object-cover" />
                     ) : (
-                      <div className="text-zinc-400 text-xs font-semibold">No listing photo available</div>
+                      <div className="text-zinc-400 text-xs font-semibold">No listing media available</div>
                     )
+                  ) : activePreviewSlide === 2 ? (
+                    <img src={`${BACKEND_URL}/uploads/brand_welcome.png`} alt="Slide 3: Branding Logo" className="w-full h-full object-cover" />
                   ) : generatedPoster ? (
-                    <img src={generatedPoster} alt="Live Poster Preview" className="w-full h-full object-contain" />
+                    <img src={generatedPoster} alt="Slide 1: Generated Poster" className="w-full h-full object-contain" />
                   ) : (
                     <>
-                      {/* AI GRAPHIC DESIGNER PREVIEW PLACEHOLDER */}
+                      {/* POSTER PLACEHOLDER (no poster generated yet) */}
                       {selectedTemplate === "full_ai_poster" && (
                         <div className="w-full h-full bg-gradient-to-b from-[#050b1a] to-[#030712] text-white flex flex-col justify-between p-3 relative font-sans text-[8px] border-4 border-[#d4af37] rounded shadow-inner">
                           {/* Header */}
                           <div className="flex items-center gap-1.5 border-b border-[#d4af37]/40 pb-1">
-                            <div className="w-6 h-6 rounded-full border-2 border-[#d4af37] bg-slate-800 flex items-center justify-center font-bold text-[6px] text-[#d4af37] shrink-0">LOGO</div>
+                            <div className="w-6 h-6 rounded-full border-2 border-[#d4af37] bg-slate-800 flex items-center justify-center font-bold text-[4.5px] text-[#d4af37] shrink-0">NEARME</div>
                             <div className="truncate">
                               <h5 className="font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-yellow-400 uppercase text-[9px] leading-none truncate">{formValues.businessName || "BUSINESS NAME"}</h5>
                               <span className="text-[5px] text-zinc-400 uppercase tracking-wide">Premium Gated Community</span>
@@ -1695,7 +1850,7 @@ ${hashtags}`;
                         <div className="w-full h-full bg-gradient-to-b from-[#050b1a] to-[#030712] text-white flex flex-col justify-between p-3 relative font-sans text-[8px] border-4 border-[#d4af37] rounded shadow-inner">
                           {/* Header */}
                           <div className="flex items-center gap-1.5 border-b border-[#d4af37]/40 pb-1">
-                            <div className="w-6 h-6 rounded-full border-2 border-[#d4af37] bg-slate-800 flex items-center justify-center font-bold text-[6px] text-[#d4af37] shrink-0">LOGO</div>
+                            <div className="w-6 h-6 rounded-full border-2 border-[#d4af37] bg-slate-800 flex items-center justify-center font-bold text-[4.5px] text-[#d4af37] shrink-0">NEARME</div>
                             <div className="truncate">
                               <h5 className="font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-yellow-400 uppercase text-[9px] leading-none truncate">{formValues.businessName || "BUSINESS NAME"}</h5>
                               <span className="text-[5px] text-zinc-400 uppercase tracking-wide">Premium Gated Community</span>
@@ -1871,7 +2026,7 @@ ${hashtags}`;
                       onClick={() => setActivePreviewSlide(0)}
                       className={`flex-1 py-1 px-1 text-[9px] font-black rounded uppercase tracking-tighter text-center transition-all ${activePreviewSlide === 0 ? 'bg-[#d4af37] text-slate-950 font-black scale-[1.03] shadow-md' : 'bg-slate-950/80 text-zinc-400 hover:text-white border border-slate-800'}`}
                     >
-                      Slide 1: Logo
+                      Slide 1: Poster
                     </button>
                     {hasListingMedia && (
                       <button
@@ -1887,7 +2042,7 @@ ${hashtags}`;
                       onClick={() => setActivePreviewSlide(2)}
                       className={`flex-1 py-1 px-1 text-[9px] font-black rounded uppercase tracking-tighter text-center transition-all ${activePreviewSlide === 2 ? 'bg-[#d4af37] text-slate-950 font-black scale-[1.03] shadow-md' : 'bg-slate-950/80 text-zinc-400 hover:text-white border border-slate-800'}`}
                     >
-                      Slide 3: Poster
+                      Slide 3: Logo
                     </button>
                   </div>
                 </div>
@@ -2013,6 +2168,39 @@ ${hashtags}`;
                       💡 This listing is already published on Instagram. Re-posting will create a new Instagram post container.
                     </div>
                   )}
+                </div>
+
+                {/* Delete Listing */}
+                <div className="pt-2 border-t border-slate-800 mt-1">
+                  <button
+                    type="button"
+                    className="w-full text-[10px] font-bold text-red-500 hover:text-red-400 hover:bg-red-950/40 py-1.5 px-3 rounded transition-colors flex items-center justify-center gap-1.5"
+                    onClick={async () => {
+                      if (!selectedProperty) return;
+                      const confirmed = window.confirm(
+                        `⚠️ Delete this listing?\n\n"${selectedProperty.property_title || "This listing"}"\n\nThis will permanently remove the listing and all its media from the database. This cannot be undone.`
+                      );
+                      if (!confirmed) return;
+                      try {
+                        const res = await fetch(`${API_BASE}/instagram/delete-listing`, {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ propertyId: selectedProperty.id }),
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                          toast.success("Listing deleted successfully.");
+                          window.location.href = "/admin/all-listings";
+                        } else {
+                          toast.error(data.message || "Failed to delete listing.");
+                        }
+                      } catch {
+                        toast.error("Network error. Could not delete listing.");
+                      }
+                    }}
+                  >
+                    🗑️ Delete this Listing
+                  </button>
                 </div>
 
               </CardContent>

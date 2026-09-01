@@ -9,6 +9,7 @@ import {
   buildCaption,
   createMediaContainer,
   createCarouselContainer,
+  createReelContainer,
   publishMedia,
   PropertyForCaption,
 } from "../services/instagram.service";
@@ -45,7 +46,7 @@ const IMAGE2_DEFAULT_DESIGN_PLAN: DesignPlan = {
     priceSize: 34,
     ctaSize: 34,
   },
-  highlights: ["2400 SQ.FT", "SOUTH FACING", "LAND", "FOR SALE"],
+  highlights: [],
 };
 
 let cachedBrandWelcomeUrl: string | null = null;
@@ -84,7 +85,8 @@ export const publishPost = async (req: Request, res: Response) => {
          p.address, p.description,
          p.instagram_post_status, p.instagram_post_id,
          COALESCE(b.business_name, '') AS business_name,
-         COALESCE(b.phone, '')         AS contact_phone
+         COALESCE(b.phone, '')         AS contact_phone,
+         COALESCE(b.instagram_username, '') AS instagram_username
        FROM properties p
        LEFT JOIN businesses b ON p.business_id = b.id
        WHERE p.id = $1`,
@@ -99,7 +101,7 @@ export const publishPost = async (req: Request, res: Response) => {
 
     // Load original scraped post images & URLs
     const mediaRes = await pool.query(
-      `SELECT content_url, media_url, raw_data FROM social_contents WHERE property_id = $1 ORDER BY created_at ASC`,
+      `SELECT content_url, media_url, video_url, media_type, raw_data FROM social_contents WHERE property_id = $1 ORDER BY created_at ASC`,
       [propertyId]
     );
     socialContentsRows = mediaRes.rows;
@@ -115,21 +117,35 @@ export const publishPost = async (req: Request, res: Response) => {
     });
   }
 
-  // Extract original post URLs and display images
+  // Extract original post media items (images and videos) — Meta Graph API carousel supports both
   const postUrls = socialContentsRows.map((r: any) => r.content_url).filter(Boolean);
-  const originalImages: string[] = [];
+  const originalMedia: { url: string; isVideo: boolean }[] = [];
 
   for (const row of socialContentsRows) {
-    if (row.media_url && !originalImages.includes(row.media_url)) {
-      originalImages.push(row.media_url);
+    const isVideo = row.media_type === "reel" || row.media_type === "video" || !!row.video_url;
+    const url = isVideo ? (row.video_url || row.media_url) : row.media_url;
+
+    if (url) {
+      const exists = originalMedia.some((m) => m.url === url);
+      if (!exists) {
+        originalMedia.push({ url, isVideo });
+      }
     }
+
     try {
       const raw = typeof row.raw_data === 'string' ? JSON.parse(row.raw_data) : row.raw_data;
       if (raw && Array.isArray(raw.childPosts)) {
         for (const child of raw.childPosts) {
-          const childUrl = child.displayUrl || child.display_url || child.media_url;
-          if (childUrl && !originalImages.includes(childUrl)) {
-            originalImages.push(childUrl);
+          const childIsVideo = child.videoUrl || child.video_url || child.isVideo;
+          const childUrl = childIsVideo
+            ? (child.videoUrl || child.video_url || child.displayUrl || child.display_url || child.media_url)
+            : (child.displayUrl || child.display_url || child.media_url);
+
+          if (childUrl) {
+            const exists = originalMedia.some((m) => m.url === childUrl);
+            if (!exists) {
+              originalMedia.push({ url: childUrl, isVideo: !!childIsVideo });
+            }
           }
         }
       }
@@ -161,34 +177,40 @@ export const publishPost = async (req: Request, res: Response) => {
     welcomeUrl = "";
   }
 
-  // Upload all needed original images to ImageKit so Meta Graph API can fetch them without permission/OAuth errors
-  const uploadedOriginalImages: string[] = [];
-  try {
-    const imagesToUpload = originalImages.slice(0, 4); // Only need up to 4 original images
-    console.log(`[Instagram Publish] Pre-uploading ${imagesToUpload.length} original scraped images to ImageKit...`);
-    const uploadPromises = imagesToUpload.map((url, idx) => {
-      const filename = `listing_original_${propertyId}_${idx}_${Date.now()}.jpg`;
-      return uploadRemoteImageToImageKit(url, filename);
-    });
-    const results = await Promise.all(uploadPromises);
-    uploadedOriginalImages.push(...results);
-  } catch (err: any) {
-    console.error("[Instagram Publish] Failed to pre-upload original images to ImageKit:", err.message);
-    // Fallback to original URLs to at least try publishing
-    uploadedOriginalImages.push(...originalImages.slice(0, 4));
+  // Upload all needed original media to ImageKit so Meta Graph API can fetch them without permission/OAuth errors
+  // Upload all needed original media to ImageKit so Meta Graph API can fetch them without permission/OAuth errors
+  const uploadedOriginalMedia: { url: string; isVideo: boolean }[] = [];
+  const mediaToUpload = originalMedia.slice(0, 4); // Only need up to 4 original media items
+  console.log(`[Instagram Publish] Pre-uploading ${mediaToUpload.length} original scraped media items to ImageKit...`);
+
+  for (let idx = 0; idx < mediaToUpload.length; idx++) {
+    const item = mediaToUpload[idx];
+    if (!item || !item.url) continue;
+
+    // If already an ImageKit URL, keep it directly
+    if (item.url.includes("imagekit.io")) {
+      uploadedOriginalMedia.push(item);
+      continue;
+    }
+
+    try {
+      const ext = item.isVideo ? "mp4" : "jpg";
+      const filename = `listing_original_${propertyId}_${idx}_${Date.now()}.${ext}`;
+      const ikUrl = await uploadRemoteImageToImageKit(item.url, filename);
+      uploadedOriginalMedia.push({ url: ikUrl, isVideo: item.isVideo });
+    } catch (err: any) {
+      console.warn(`[Instagram Publish] Skipping media item ${idx} due to expired CDN URL:`, err.message);
+      // Skip expired CDN URLs to prevent Meta Graph API 403/502 container failures
+    }
   }
 
-  // Create carousel URLs array: Welcome branding first, Listing image second, Flyer poster third
-  const carouselImages: string[] = [];
+  // Create carousel URLs array: Flyer poster first, Listing media (photos + reels) second, Welcome branding last
+  const carouselImages: { url: string; isVideo?: boolean }[] = [];
+  carouselImages.push({ url: publicImageUrl, isVideo: false });
+  carouselImages.push(...uploadedOriginalMedia);
   if (welcomeUrl) {
-    carouselImages.push(welcomeUrl);
+    carouselImages.push({ url: welcomeUrl, isVideo: false });
   }
-  const firstOriginal = uploadedOriginalImages[0];
-  if (firstOriginal) {
-    carouselImages.push(firstOriginal);
-  }
-  carouselImages.push(publicImageUrl);
-  carouselImages.push(...uploadedOriginalImages.slice(1));
 
   // ── 3. Now mark as Publishing ────────────────────────────────────────────────
   await pool.query(
@@ -223,6 +245,14 @@ export const publishPost = async (req: Request, res: Response) => {
     }
   }
 
+  // Mention the promoter's Instagram username if available and not already in the caption
+  if (propertyRow.instagram_username) {
+    const handle = `@${propertyRow.instagram_username.replace(/^@/, "")}`;
+    if (!caption.includes(handle)) {
+      caption += `\n\nPromoted by: ${handle}`;
+    }
+  }
+
   // ── 6. Create Instagram media container (Carousel vs Single Image) ──────────
   let creationId: string;
   try {
@@ -241,7 +271,7 @@ export const publishPost = async (req: Request, res: Response) => {
     );
     return res.status(502).json({
       success: false,
-      message: "Instagram media container creation failed.",
+      message: `Instagram media container creation failed: ${containerErr.message}`,
       error: containerErr.message,
     });
   }
@@ -581,7 +611,9 @@ export const generatePoster = async (req: Request, res: Response) => {
       title || "",
       category || "Real Estate",
       address || "",
-      designStyle
+      designStyle,
+      2,
+      description || ""
     );
 
     let visualPrompt = planResult?.visualPrompt || IMAGE2_DEFAULT_VISUAL_PROMPT;
@@ -613,6 +645,126 @@ export const generatePoster = async (req: Request, res: Response) => {
       success: false,
       message: "Poster generation failed. Please check server network connection.",
       error: error.message,
+    });
+  }
+};
+
+// ── DELETE LISTING ───────────────────────────────────────────────────────────
+export const deleteListing = async (req: Request, res: Response): Promise<any> => {
+  const { propertyId } = req.body;
+  if (!propertyId) {
+    return res.status(400).json({ success: false, message: "propertyId is required." });
+  }
+
+  try {
+    // Delete associated social_contents first (FK constraint)
+    await pool.query("DELETE FROM social_contents WHERE property_id = $1", [propertyId]);
+    // Delete the property itself
+    const result = await pool.query("DELETE FROM properties WHERE id = $1 RETURNING id", [propertyId]);
+    if (result.rowCount === 0) {
+      return res.status(404).json({ success: false, message: "Property not found." });
+    }
+    return res.status(200).json({ success: true, message: "Listing deleted successfully.", deletedId: propertyId });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: "Failed to delete listing.", error: err.message });
+  }
+};
+
+// ── DELETE SINGLE MEDIA ITEM ──────────────────────────────────────────────────
+export const deleteMedia = async (req: Request, res: Response): Promise<any> => {
+  const { mediaId, mediaUrl, propertyId } = req.body;
+  if (!mediaId && !mediaUrl) {
+    return res.status(400).json({ success: false, message: "mediaId or mediaUrl is required." });
+  }
+
+  try {
+    let result: any;
+    if (mediaId) {
+      result = await pool.query("DELETE FROM social_contents WHERE id = $1 RETURNING id", [mediaId]);
+    } else if (mediaUrl && propertyId) {
+      result = await pool.query(
+        "DELETE FROM social_contents WHERE property_id = $1 AND (media_url = $2 OR video_url = $2 OR content_url = $2) RETURNING id",
+        [propertyId, mediaUrl]
+      );
+    }
+
+    if (result && result.rowCount === 0) {
+      return res.status(404).json({ success: false, message: "Media item not found in DB." });
+    }
+    return res.status(200).json({ success: true, message: "Media item removed successfully." });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: "Failed to delete media item.", error: err.message });
+  }
+};
+
+// ── PUBLISH REEL (NATIVE INSTAGRAM REEL) ──────────────────────────────────────
+export const publishReel = async (req: Request, res: Response): Promise<any> => {
+  const { propertyId, caption: suppliedCaption, videoUrl, simulate } = req.body;
+
+  if (!propertyId || !videoUrl) {
+    return res.status(400).json({
+      success: false,
+      message: "Missing required fields: propertyId and videoUrl are required.",
+    });
+  }
+
+  try {
+    // 1. Upload video to ImageKit if not already on ImageKit
+    let publicVideoUrl = videoUrl;
+    if (!videoUrl.includes("imagekit.io")) {
+      console.log(`[Instagram Reel] Uploading video to ImageKit...`);
+      const filename = `reel_${propertyId}_${Date.now()}.mp4`;
+      publicVideoUrl = await uploadRemoteImageToImageKit(videoUrl, filename);
+    }
+
+    // 2. Load property details for caption
+    const checkRes = await pool.query(
+      `SELECT p.*, COALESCE(b.business_name, '') AS business_name, COALESCE(b.phone, '') AS contact_phone, COALESCE(b.instagram_username, '') AS instagram_username FROM properties p LEFT JOIN businesses b ON p.business_id = b.id WHERE p.id = $1`,
+      [propertyId]
+    );
+
+    if (checkRes.rows.length === 0) {
+      return res.status(404).json({ success: false, message: "Property listing not found." });
+    }
+
+    const propertyRow = checkRes.rows[0];
+    let caption = suppliedCaption?.trim() || buildCaption(propertyRow as PropertyForCaption);
+    if (propertyRow.instagram_username) {
+      const handle = `@${propertyRow.instagram_username.replace(/^@/, "")}`;
+      if (!caption.includes(handle)) {
+        caption += `\n\nPromoted by: ${handle}`;
+      }
+    }
+
+    if (simulate === true) {
+      const mockPostId = `sim_reel_${Date.now()}`;
+      return res.status(200).json({
+        success: true,
+        message: "Reel simulation completed successfully.",
+        data: { status: "Simulated", postId: mockPostId, videoUrl: publicVideoUrl },
+      });
+    }
+
+    // 3. Create Reel Container
+    console.log(`[Instagram Reel] Creating container for ${publicVideoUrl}...`);
+    const creationId = await createReelContainer(publicVideoUrl, caption);
+
+    // 4. Publish Reel
+    console.log(`[Instagram Reel] Publishing container ${creationId}...`);
+    const livePostId = await publishMedia(creationId);
+
+    console.log(`[Instagram Reel] ✅ Reel published. Post ID: ${livePostId}`);
+    return res.status(200).json({
+      success: true,
+      message: "Successfully published Reel to Instagram!",
+      data: { status: "Published", postId: livePostId },
+    });
+  } catch (err: any) {
+    console.error("[Instagram Reel] Failed:", err.message);
+    return res.status(502).json({
+      success: false,
+      message: `Reel publishing failed: ${err.message}`,
+      error: err.message,
     });
   }
 };

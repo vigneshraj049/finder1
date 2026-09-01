@@ -18,6 +18,7 @@ export interface PropertyForCaption {
   description?: string | null;
   business_name?: string | null;
   contact_phone?: string | null;
+  instagram_username?: string | null;
 }
 
 /**
@@ -57,6 +58,10 @@ export const buildCaption = (property: PropertyForCaption): string => {
     lines.push(`\n📞 ${property.contact_phone}`);
   }
 
+  if (property.instagram_username) {
+    lines.push(`📱 Source: @${property.instagram_username.replace(/^@/, "")}`);
+  }
+
   lines.push("\n#RealEstate #Property #Trichy #HomeSale #LandForSale");
 
   return lines.join("\n");
@@ -71,7 +76,7 @@ export const buildCaption = (property: PropertyForCaption): string => {
  * Returns the parent container ID.
  */
 export const createCarouselContainer = async (
-  imageUrls: string[],
+  imageUrls: (string | { url: string; isVideo?: boolean })[],
   caption: string
 ): Promise<string> => {
   const accessToken  = process.env.META_ACCESS_TOKEN;
@@ -85,20 +90,31 @@ export const createCarouselContainer = async (
     );
   }
 
-  // Step 1: Create a container for each image
+  // Step 1: Create a container for each image/video
   const childIds: string[] = [];
   for (let i = 0; i < imageUrls.length; i++) {
-    const url = imageUrls[i];
-    console.log(`[Instagram] Creating carousel item container ${i + 1}/${imageUrls.length}: ${url}`);
+    const item = imageUrls[i];
+    const isVideo = typeof item === "object" ? !!item.isVideo : false;
+    const url = typeof item === "object" ? item.url : item;
+
+    console.log(`[Instagram] Creating carousel item container ${i + 1}/${imageUrls.length}: ${url} (isVideo: ${isVideo})`);
+
+    const body: Record<string, any> = {
+      is_carousel_item: true,
+      access_token: accessToken,
+    };
+
+    if (isVideo) {
+      body.media_type = "VIDEO";
+      body.video_url = url;
+    } else {
+      body.image_url = url;
+    }
 
     const res = await fetch(`https://graph.facebook.com/${graphVersion}/${businessId}/media`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        image_url: url,
-        is_carousel_item: true,
-        access_token: accessToken,
-      }),
+      body: JSON.stringify(body),
     });
 
     const data: any = await res.json();
@@ -107,7 +123,35 @@ export const createCarouselContainer = async (
       throw new Error(`Failed to create carousel item ${i + 1}. Meta response: ${errDetail}`);
     }
 
-    childIds.push(data.id);
+    const childId = String(data.id);
+
+    // If item is a video, wait until Meta finishes processing it before attaching to parent container
+    if (isVideo) {
+      console.log(`[Instagram] Waiting for video child container ${childId} processing...`);
+      let isReady = false;
+      for (let poll = 0; poll < 20; poll++) {
+        await sleep(3000);
+        try {
+          const statusRes = await fetch(`https://graph.facebook.com/${graphVersion}/${childId}?fields=status_code&access_token=${accessToken}`);
+          const statusData: any = await statusRes.json();
+          const code = statusData.status_code;
+          console.log(`[Instagram] Child video container ${childId} status (poll ${poll + 1}/20): ${code}`);
+          if (code === "FINISHED") {
+            isReady = true;
+            break;
+          }
+          if (code === "ERROR") {
+            console.warn(`[Instagram] Child video container ${childId} failed processing.`);
+            break;
+          }
+        } catch (e) {}
+      }
+      if (!isReady) {
+        console.warn(`[Instagram] Child video container ${childId} status poll finished or timed out.`);
+      }
+    }
+
+    childIds.push(childId);
   }
 
   // Step 2: Create the parent carousel container
@@ -176,6 +220,48 @@ export const createMediaContainer = async (
   }
 
   console.log(`[Instagram] Step 1 ✅ creation_id: ${data.id}`);
+  return String(data.id);
+};
+
+/**
+ * Create a native Instagram REEL container (media_type = 'REELS').
+ */
+export const createReelContainer = async (
+  videoUrl: string,
+  caption: string
+): Promise<string> => {
+  const accessToken = process.env.META_ACCESS_TOKEN;
+  const businessId  = process.env.INSTAGRAM_BUSINESS_ID;
+  const graphVersion = process.env.META_GRAPH_API_VERSION || "v20.0";
+
+  if (!accessToken || !businessId) {
+    throw new Error(
+      "Instagram Graph API credentials are not configured. " +
+      "Ensure META_ACCESS_TOKEN and INSTAGRAM_BUSINESS_ID are set in .env"
+    );
+  }
+
+  console.log(`[Instagram] Creating native Reel container. video_url: ${videoUrl}`);
+
+  const res = await fetch(`https://graph.facebook.com/${graphVersion}/${businessId}/media`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      media_type: "REELS",
+      video_url: videoUrl,
+      caption,
+      access_token: accessToken,
+    }),
+  });
+
+  const data: any = await res.json();
+
+  if (!res.ok || !data.id) {
+    const detail = JSON.stringify(data.error ?? data);
+    throw new Error(`Reel container creation failed. Meta response: ${detail}`);
+  }
+
+  console.log(`[Instagram] Reel container created ID: ${data.id}`);
   return String(data.id);
 };
 

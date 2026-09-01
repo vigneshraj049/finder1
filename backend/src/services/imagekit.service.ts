@@ -85,26 +85,45 @@ export const uploadRemoteImageToImageKit = async (
     throw new Error("Invalid remote URL provided.");
   }
 
+  const client = getClient();
+
   try {
-    console.log(`[ImageKit] Fetching remote image on backend: ${remoteUrl}`);
-    const response = await fetch(remoteUrl, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-      },
-    });
+    console.log(`[ImageKit] Direct uploading remote URL: ${remoteUrl}`);
+    const response = await client.files.upload({
+      file: remoteUrl,
+      fileName: filename,
+      folder,
+      useUniqueFileName: false,
+    } as any);
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch image from CDN: ${response.statusText}`);
+    const publicUrl = (response as any).url as string | undefined;
+    if (!publicUrl) {
+      throw new Error("ImageKit upload succeeded but returned no public URL.");
     }
-
-    const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    const contentType = response.headers.get("content-type") || "image/jpeg";
-    const base64DataUrl = `data:${contentType};base64,${buffer.toString("base64")}`;
-
-    return await uploadBase64Image(base64DataUrl, filename, folder);
+    console.log(`[ImageKit] Remote upload complete: ${publicUrl}`);
+    return publicUrl;
   } catch (error: any) {
-    console.error(`[ImageKit] Failed to upload remote image ${remoteUrl}:`, error.message);
-    throw error;
+    console.warn(`[ImageKit] Direct URL upload failed (${error.message}), attempting buffer fallback...`);
+    try {
+      const res = await fetch(remoteUrl, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        },
+      });
+
+      if (!res.ok) {
+        throw new Error(`Failed to fetch image from CDN: ${res.statusText}`);
+      }
+
+      const arrayBuffer = await res.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      const contentType = res.headers.get("content-type") || "image/jpeg";
+      const base64DataUrl = `data:${contentType};base64,${buffer.toString("base64")}`;
+
+      return await uploadBase64Image(base64DataUrl, filename, folder);
+    } catch (fallbackError: any) {
+      console.error(`[ImageKit] Failed to upload remote image ${remoteUrl}:`, fallbackError.message);
+      throw fallbackError;
+    }
   }
 };
