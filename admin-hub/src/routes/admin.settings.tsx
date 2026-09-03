@@ -69,21 +69,8 @@ const CATEGORY_PRESETS = [
 ];
 
 const LOCATION_PRESETS = [
-  "Thanjavur",
-  "Tanjore",
   "Trichy",
-  "Chennai",
-  "Madurai",
-  "Coimbatore",
-  "Kumbakonam",
-  "Salem",
-  "Erode",
-  "Tirunelveli",
-  "Vellore",
-  "Karur",
-  "Bengaluru",
-  "Hyderabad",
-  "Mumbai",
+  "Thanjavur",
 ];
 
 function RunScraperCard() {
