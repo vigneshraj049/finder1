@@ -36,13 +36,28 @@ const ensureSchemaColumns = async () => {
         ADD COLUMN IF NOT EXISTS instagram_draft_image_url TEXT;
     `);
 
+    // Ensure default Tamil Nadu locations exist in locations table
+    await pool.query(`
+      INSERT INTO locations (name, state, country)
+      VALUES 
+        ('Thanjavur', 'Tamil Nadu', 'India'),
+        ('Tanjore', 'Tamil Nadu', 'India'),
+        ('Trichy', 'Tamil Nadu', 'India'),
+        ('Chennai', 'Tamil Nadu', 'India'),
+        ('Madurai', 'Tamil Nadu', 'India'),
+        ('Coimbatore', 'Tamil Nadu', 'India'),
+        ('Kumbakonam', 'Tamil Nadu', 'India'),
+        ('Salem', 'Tamil Nadu', 'India')
+      ON CONFLICT (name, state, country) DO NOTHING;
+    `);
+
     // Ensure uploads directory exists
     const uploadsDir = path.join(__dirname, "../uploads");
     if (!fs.existsSync(uploadsDir)) {
       fs.mkdirSync(uploadsDir, { recursive: true });
     }
 
-    console.log("Database schema check complete for properties and social content columns.");
+    console.log("Database schema check complete: Thanjavur and default locations seeded.");
   } catch (error) {
     console.error("Unable to ensure required database schema columns:", error);
   }
