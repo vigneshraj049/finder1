@@ -69,15 +69,21 @@ const CATEGORY_PRESETS = [
 ];
 
 const LOCATION_PRESETS = [
+  "Thanjavur",
+  "Tanjore",
+  "Trichy",
   "Chennai",
   "Madurai",
   "Coimbatore",
-  "Trichy",
-  "Mumbai",
+  "Kumbakonam",
+  "Salem",
+  "Erode",
+  "Tirunelveli",
+  "Vellore",
+  "Karur",
   "Bengaluru",
-  "Delhi NCR",
-  "Pune",
   "Hyderabad",
+  "Mumbai",
 ];
 
 function RunScraperCard() {
@@ -197,6 +203,8 @@ function ManagerCard({
   const existingNames = new Set((items ?? []).map((i) => i.name.toLowerCase()));
   const availablePresets = presets.filter((p) => !existingNames.has(p.toLowerCase()));
 
+  const [customText, setCustomText] = useState("");
+
   const handleSelect = (value: string) => {
     if (!value) return;
     onCreate(value);
@@ -208,6 +216,35 @@ function ManagerCard({
         <CardTitle className="text-base">{title}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className="flex gap-2">
+          <input
+            type="text"
+            placeholder={`Add custom ${title.toLowerCase()} (e.g. Thanjavur)...`}
+            value={customText}
+            onChange={(e) => setCustomText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && customText.trim()) {
+                e.preventDefault();
+                onCreate(customText.trim());
+                setCustomText("");
+              }
+            }}
+            className="flex-1 h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          />
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => {
+              if (customText.trim()) {
+                onCreate(customText.trim());
+                setCustomText("");
+              }
+            }}
+          >
+            Add
+          </Button>
+        </div>
+
         <Select onValueChange={handleSelect} value="">
           <SelectTrigger aria-label={placeholder}>
             <SelectValue placeholder={placeholder} />

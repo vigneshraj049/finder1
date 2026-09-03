@@ -10,6 +10,7 @@ import {
   MapPin,
   Layers,
   Share2,
+  Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,6 +51,7 @@ function AdminAllListings() {
   const [selectedProperty, setSelectedProperty] = useState<RealProperty | null>(null);
   const [activeTab, setActiveTab] = useState<"all" | "reels" | "photos">("all");
   const [filterDate, setFilterDate] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState<string>("");
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -81,8 +83,18 @@ function AdminAllListings() {
     if (filterDate) {
       data = data.filter((p) => p.created_at.startsWith(filterDate));
     }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      data = data.filter(
+        (p) =>
+          (p.address && p.address.toLowerCase().includes(q)) ||
+          (p.property_title && p.property_title.toLowerCase().includes(q)) ||
+          (p.description && p.description.toLowerCase().includes(q)) ||
+          (p.business_name && p.business_name.toLowerCase().includes(q))
+      );
+    }
     return data;
-  }, [propertyQuery.data, filterDate]);
+  }, [propertyQuery.data, filterDate, searchQuery]);
 
   const filteredMediaItems = useMemo(() => {
     if (!selectedProperty?.media_items) return [];
@@ -120,14 +132,34 @@ function AdminAllListings() {
           </div>
           
           <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Search city / location (e.g. Thanjavur)..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-8 w-60 rounded-md border border-input bg-transparent pl-8 pr-3 py-1 text-xs shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+            </div>
             <input 
               type="date" 
               value={filterDate} 
               onChange={(e) => setFilterDate(e.target.value)}
               className="h-8 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             />
-            {filterDate && (
-              <Button variant="ghost" size="sm" onClick={() => setFilterDate("")} className="h-8 px-2 text-xs">Clear</Button>
+            {(filterDate || searchQuery) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setFilterDate("");
+                  setSearchQuery("");
+                }}
+                className="h-8 px-2 text-xs"
+              >
+                Clear
+              </Button>
             )}
           </div>
         </CardHeader>
