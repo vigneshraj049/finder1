@@ -95,49 +95,8 @@ const getNormalizedInstagramItem = (item: any, defaultMediaType: "post" | "reel"
   };
 };
 
-export const startScraper = async (
-  req: Request,
-  res: Response
-) => {
-  const { searchRequestId } = req.params;
-
+async function runScraperTask(searchRequestId: any, hashtag: string, searchRequest: any) {
   try {
-    const searchResult = await pool.query(
-      `SELECT sr.id, sr.status, c.name AS category_name, l.name AS location_name
-       FROM search_requests sr
-       JOIN categories c ON sr.category_id = c.id
-       JOIN locations l ON sr.location_id = l.id
-       WHERE sr.id = $1`,
-      [searchRequestId]
-    );
-
-    if (searchResult.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "Search request not found",
-      });
-    }
-
-    const searchRequest = searchResult.rows[0];
-
-    if (searchRequest.status !== "PENDING") {
-      return res.status(400).json({
-        success: false,
-        message: `Search request is already ${searchRequest.status}`,
-      });
-    }
-
-    await pool.query(
-      `UPDATE search_requests SET status = 'RUNNING' WHERE id = $1`,
-      [searchRequestId]
-    );
-
-    const hashtag = `${searchRequest.category_name}${searchRequest.location_name}`
-      .toLowerCase()
-      .replace(/\s+/g, "");
-
-    console.log(`Starting scrapers for hashtag: #${hashtag}`);
-
     // Fetch both Posts and Reels in parallel
     const [postScraperResult, reelScraperResult] = await Promise.allSettled([
       runInstagramScraper({ hashtag, resultsLimit: 20 }),
@@ -457,21 +416,77 @@ export const startScraper = async (
       [searchRequestId]
     );
 
-    return res.status(200).json({
+    console.log(`Scraper task completed for searchRequestId ${searchRequestId}: fetched ${scrapedItems.length}, new ${newCount}, dup ${duplicateCount}, failed ${failedCount}`);
+  } catch (error) {
+    console.error("Error running scraper task in background:", error);
+
+    await pool.query(
+      `UPDATE search_requests SET status = 'FAILED' WHERE id = $1`,
+      [searchRequestId]
+    );
+  }
+}
+
+export const startScraper = async (
+  req: Request,
+  res: Response
+) => {
+  const { searchRequestId } = req.params;
+
+  try {
+    const searchResult = await pool.query(
+      `SELECT sr.id, sr.status, c.name AS category_name, l.name AS location_name
+       FROM search_requests sr
+       JOIN categories c ON sr.category_id = c.id
+       JOIN locations l ON sr.location_id = l.id
+       WHERE sr.id = $1`,
+      [searchRequestId]
+    );
+
+    if (searchResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Search request not found",
+      });
+    }
+
+    const searchRequest = searchResult.rows[0];
+
+    if (searchRequest.status !== "PENDING") {
+      return res.status(400).json({
+        success: false,
+        message: `Search request is already ${searchRequest.status}`,
+      });
+    }
+
+    await pool.query(
+      `UPDATE search_requests SET status = 'RUNNING' WHERE id = $1`,
+      [searchRequestId]
+    );
+
+    const hashtag = `${searchRequest.category_name}${searchRequest.location_name}`
+      .toLowerCase()
+      .replace(/\s+/g, "");
+
+    console.log(`Starting scrapers for hashtag: #${hashtag}`);
+
+    // Respond immediately to avoid HTTP proxy timeout / CORS disconnect
+    res.status(200).json({
       success: true,
-      message: "Scraping and listing merging completed successfully",
+      message: "Scraper task started in background",
       data: {
         searchRequestId,
         hashtag,
-        totalFetched: scrapedItems.length,
-        newPostsSaved: newCount,
-        duplicatesSkipped: duplicateCount,
-        failed: failedCount,
       },
     });
 
+    // Run scraper asynchronously in background
+    runScraperTask(searchRequestId, hashtag, searchRequest).catch((err) => {
+      console.error(`Unhandled error in background scraper task for request ${searchRequestId}:`, err);
+    });
+
   } catch (error) {
-    console.error("Error running scraper:", error);
+    console.error("Error initiating scraper:", error);
 
     await pool.query(
       `UPDATE search_requests SET status = 'FAILED' WHERE id = $1`,
@@ -480,7 +495,7 @@ export const startScraper = async (
 
     return res.status(500).json({
       success: false,
-      message: "Scraper failed to run",
+      message: "Scraper failed to start",
     });
   }
 };

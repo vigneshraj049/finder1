@@ -72,7 +72,8 @@ function AdminListings() {
       return getRealPropertyResults(Number(searchRequestId));
     },
     enabled: !!searchRequestId,
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 5,
+    refetchInterval: 5000,
   });
 
   const scoreMutation = useMutation({
