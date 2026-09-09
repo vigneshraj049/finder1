@@ -77,7 +77,6 @@ app.use(
     credentials: true,
   })
 );
-app.options("*", cors());
 app.use(express.json({ limit: "50mb" })); // Support large base64 poster uploads
 
 // Routes
