@@ -12,6 +12,7 @@ import {
   Layers,
   CheckCircle2,
   Share2,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -72,8 +73,10 @@ function AdminListings() {
       return getRealPropertyResults(Number(searchRequestId));
     },
     enabled: !!searchRequestId,
-    staleTime: 1000 * 5,
-    refetchInterval: 5000,
+    refetchInterval: (query) => {
+      const status = query.state.data?.searchStatus;
+      return status === "RUNNING" || status === "PENDING" ? 3000 : false;
+    },
   });
 
   const scoreMutation = useMutation({
@@ -115,8 +118,8 @@ function AdminListings() {
     }
   };
 
-  const results = (propertyQuery.data ?? []) as RealProperty[];
-
+  const results = (propertyQuery.data?.properties ?? []) as RealProperty[];
+  const searchStatus = propertyQuery.data?.searchStatus || "COMPLETED";
 
   const filteredMediaItems = useMemo(() => {
     if (!selectedProperty?.media_items) return [];
@@ -151,10 +154,15 @@ function AdminListings() {
                 {results.length} Consolidated {results.length === 1 ? "Listing" : "Listings"}
               </Badge>
             )}
+            {(searchStatus === "RUNNING" || searchStatus === "PENDING") && (
+              <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 text-xs gap-1.5 py-0.5">
+                <Loader2 className="size-3 animate-spin" />
+                Scraper Running
+              </Badge>
+            )}
           </div>
           
           <div className="flex items-center gap-2">
-            {/* AI Scoring Button removed */}
             {scoringDisabled && (
               <div className="text-xs text-muted-foreground">AI scoring disabled: please add OpenRouter credits.</div>
             )}
@@ -162,6 +170,13 @@ function AdminListings() {
         </CardHeader>
 
         <CardContent className="pt-6">
+          {(searchStatus === "RUNNING" || searchStatus === "PENDING") && results.length > 0 && (
+            <div className="mb-4 flex items-center gap-2 rounded-md bg-amber-500/10 border border-amber-500/20 px-4 py-2.5 text-xs text-amber-700 dark:text-amber-300">
+              <Loader2 className="size-4 animate-spin shrink-0" />
+              <span>Scraper is actively searching Instagram in background... new listings will appear automatically.</span>
+            </div>
+          )}
+
           {!searchRequestId ? (
             <div className="rounded-lg border border-border bg-card p-8 text-center text-sm text-muted-foreground">
               No `searchRequestId` query parameter was provided. Create a search from the Finder page
@@ -178,9 +193,19 @@ function AdminListings() {
               Failed to load results for search request {searchRequestId}.
             </div>
           ) : results.length === 0 ? (
-            <div className="rounded-lg border border-border bg-card p-8 text-center text-sm text-muted-foreground">
-              No properties were found for search request {searchRequestId}.
-            </div>
+            searchStatus === "RUNNING" || searchStatus === "PENDING" ? (
+              <div className="flex flex-col items-center justify-center p-12 text-center rounded-lg border border-border bg-card">
+                <Loader2 className="size-8 animate-spin text-primary mb-3" />
+                <h3 className="font-semibold text-base text-foreground">Scraper is searching Instagram & extracting properties...</h3>
+                <p className="text-xs text-muted-foreground mt-1 max-w-md">
+                  Apify & AI models are scraping posts, reels, and contact details. Discovered properties will appear automatically every few seconds!
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-lg border border-border bg-card p-8 text-center text-sm text-muted-foreground">
+                No properties were found for search request {searchRequestId}.
+              </div>
+            )
           ) : (
             <div className="overflow-x-auto rounded-md border border-border/60">
               <Table>

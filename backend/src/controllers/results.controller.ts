@@ -128,9 +128,16 @@ export const getPropertyResults = async (
       };
     });
 
+    const statusResult = await pool.query(
+      `SELECT status FROM search_requests WHERE id = $1`,
+      [searchRequestId]
+    );
+    const searchStatus = statusResult.rows[0]?.status || "COMPLETED";
+
     return res.status(200).json({
       success: true,
       count: data.length,
+      searchStatus,
       data,
     });
 

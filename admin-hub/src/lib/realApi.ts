@@ -125,13 +125,18 @@ export const getRealPropertyResults = (searchRequestId: number) =>
 
       const json = await res.json();
 
-      return (json.data ?? []).map((item: RealProperty) => ({
+      const properties = (json.data ?? []).map((item: RealProperty) => ({
         ...item,
         contact_phone: item.contact_phone ?? item.contactNumber ?? "",
         contact_email: item.contact_email ?? item.contactEmail ?? "",
         contactNumber: item.contactNumber ?? item.contact_phone ?? "",
         contactEmail: item.contactEmail ?? item.contact_email ?? "",
       }));
+
+      return {
+        searchStatus: (json.searchStatus as string) || "COMPLETED",
+        properties,
+      };
     });
 
 export const getAllRealProperties = () =>
