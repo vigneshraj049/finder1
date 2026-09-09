@@ -597,27 +597,42 @@ export const generatePoster = async (req: Request, res: Response) => {
     instagramUsername,
     budget,
     listingType,
-    description
+    description,
+    mode,
   } = req.body;
 
   try {
-    let designStyle = IMAGE2_DEFAULT_STYLE;
-    if (referenceImage) {
-      const analyzed = await analyzeReferencePoster(referenceImage);
-      if (analyzed) designStyle = analyzed;
+    let visualPrompt = "";
+    let designPlan = IMAGE2_DEFAULT_DESIGN_PLAN;
+
+    if (mode === "full_poster") {
+      const cleanTitle = title || "Premium Property";
+      const cleanCategory = category || "Real Estate";
+      const cleanLocation = address || "Trichy";
+      const cleanBudget = budget ? `Starting at ${budget}` : "Best Price Guaranteed";
+      const cleanPhone = phone || "+91 9952131813";
+      const cleanBiz = businessName || "POWER GROUP REAL ESTATE";
+
+      visualPrompt = `A high-converting professional marketing agency real estate promotional advertisement poster for '${cleanTitle}' in ${cleanLocation}. The upper half features a stunning photorealistic 3D rendering of a lush green ${cleanCategory} site layout with clean asphalt roads, demarcated plots, street lamps, and a happy Indian family looking towards the property under a bright blue sunny sky. The graphic design overlays include: Top left professional corporate logo '${cleanBiz}'. High impact bold typography title '${cleanTitle} - ${cleanLocation}'. Prominent vibrant red and gold badge reading '${cleanBudget}'. Graphic feature badges for 'DTCP Approved Layout', 'Free Patta & Registration', 'Immediate Registration'. Bottom dark green banner with phone icon 'Call / WhatsApp: ${cleanPhone}' and location '${cleanLocation}'. High quality, vibrant colors, professional 8k social media advertisement poster design.`;
+    } else {
+      let designStyle = IMAGE2_DEFAULT_STYLE;
+      if (referenceImage) {
+        const analyzed = await analyzeReferencePoster(referenceImage);
+        if (analyzed) designStyle = analyzed;
+      }
+
+      const planResult = await generateDesignPlan(
+        title || "",
+        category || "Real Estate",
+        address || "",
+        designStyle,
+        2,
+        description || ""
+      );
+
+      visualPrompt = planResult?.visualPrompt || IMAGE2_DEFAULT_VISUAL_PROMPT;
+      designPlan = planResult?.designPlan || IMAGE2_DEFAULT_DESIGN_PLAN;
     }
-
-    const planResult = await generateDesignPlan(
-      title || "",
-      category || "Real Estate",
-      address || "",
-      designStyle,
-      2,
-      description || ""
-    );
-
-    let visualPrompt = planResult?.visualPrompt || IMAGE2_DEFAULT_VISUAL_PROMPT;
-    const designPlan = planResult?.designPlan || IMAGE2_DEFAULT_DESIGN_PLAN;
 
     // Clean up visualPrompt by removing newlines and carriage returns to prevent Cloudflare/WAF CRLF blocking (404/403)
     visualPrompt = visualPrompt.replace(/[\r\n]+/g, " ").trim();

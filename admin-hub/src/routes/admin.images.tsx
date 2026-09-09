@@ -70,7 +70,8 @@ interface FormValues {
 }
 
 const TEMPLATES = [
-  { id: "full_ai_poster", name: "AI Graphic Designer (Flux)", desc: "Generates a custom AI background photo and overlays crisp marketing graphics & text sharply on top" },
+  { id: "direct_ai_ad", name: "Full AI Agency Poster (100% AI)", desc: "Generates a complete photorealistic AI advertising poster directly (no canvas overlays)" },
+  { id: "full_ai_poster", name: "AI Hybrid Designer (Flux + Canvas)", desc: "Generates a custom AI background photo and overlays crisp marketing graphics & text sharply on top" },
   { id: "premium_flyer", name: "Marketing Flyer (Image 2 style)", desc: "Professional real estate marketing flyer layout" },
   { id: "modern_light", name: "Modern Minimalist", desc: "Clean white card, high-contrast layout" },
   { id: "dark_luxury", name: "Luxury Gold", desc: "Premium dark theme with gold accents" },
@@ -869,8 +870,37 @@ ${hashtags}`;
         });
       }
 
-      // Image 2 style marketing flyer (AI Graphic Designer + Marketing Flyer templates)
-      if (selectedTemplate === "full_ai_poster" || selectedTemplate === "premium_flyer") {
+      if (selectedTemplate === "direct_ai_ad") {
+        toast.loading("AI is generating your complete photorealistic agency poster...", { id: "poster-gen" });
+        const aiRes = await fetch(`${API_BASE}/instagram/generate-poster`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            mode: "full_poster",
+            category: formValues.category || "",
+            title: formValues.title || "",
+            address: formValues.address || "",
+            businessName: formValues.businessName || "",
+            phone: formValues.phone || "",
+            instagramUsername: formValues.instagramUsername || "",
+            budget: formValues.budget || "",
+            listingType: formValues.listingType || "",
+            description: formValues.description || "",
+          }),
+        });
+        const aiData = await aiRes.json();
+        if (aiData.dataUrl) {
+          const bgImg = new Image();
+          bgImg.src = aiData.dataUrl;
+          await new Promise<void>((resolve) => {
+            bgImg.onload = () => resolve();
+            bgImg.onerror = () => resolve();
+          });
+          ctx.drawImage(bgImg, 0, 0, 1080, 1350);
+        } else {
+          throw new Error("Failed to generate AI poster image");
+        }
+      } else if (selectedTemplate === "full_ai_poster" || selectedTemplate === "premium_flyer") {
         let activeDesignPlan = designPlan;
         let activeAiBackgroundUrl = aiBackgroundUrl;
 
