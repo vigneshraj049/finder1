@@ -408,46 +408,54 @@ export const generateDesignPlan = async (
   retries = 2,
   description = ""
 ): Promise<DesignPlanResponse | null> => {
-  const prompt = `You are an expert real-estate graphic designer.
-Analyze the following listing details from our database:
+  const prompt = `You are a master real-estate graphic designer for a top Indian marketing agency.
+Analyze the following property listing details from our database:
 Title: "${title}"
 Category: "${category}"
 Address: "${address}"
 Description: "${description}"
 
-Tasks:
-1. Extract 2 to 4 key highlights present in the title OR description that should be visually emphasized on the poster (e.g. "2400 SQ.FT", "SOUTH FACING", "LAND", "FOR SALE"). Only extract real details from the listing. Do NOT invent any features (like DTCP/RERA approvals or amenities) if they are not in the listing details.
-2. Choose a premium real-estate color palette inspired by the description or reference style.
-3. Write a visual-only image generation prompt for Pollinations AI (Flux) to create a beautiful, high-resolution real estate photograph of the property (no flyer elements, no header band, no footer strip, no gold border frames, no card overlays, no text, no logos).
-   DEFAULT STYLE TARGET: A professional, award-winning architectural real estate photograph of the property. The image must look 100% photorealistic, captured on a DSLR camera with a wide-angle lens, sharp focus, natural daylight, realistic textures, and look like a real physical site. Absolutely avoid any CGI, 3D render, cartoonish style, illustration, digital painting, or game asset look.
-   CRITICAL CATEGORY VISUAL RULES:
-   - If the title, category, or description contains the word "commercial" along with "plot", "land", "site", or "மனை", the prompt MUST feature a vacant commercial land site situated next to a realistic asphalt main road or highway, with streetlights, clear plot boundaries, and other commercial buildings or light industry visible in the far background. No dense forests or tree-lined residential parks.
-   - If the category is Land/Plot (but not commercial), the prompt MUST feature a vacant residential plot of land prepared for home construction with a clean boundary, next to a local street, with natural grass, soil, and a pleasant sky.
-   - If the category is Villa/House, the prompt must feature a modern residential villa.
-   - If the category is Apartment/Flat, the prompt must feature a modern apartment building.
-   - If the category is Commercial (not a plot/land), the prompt must feature a professional office/commercial front.
-   Ensure there are no text characters, letters, numbers, or logos generated in the visual.
+## SYSTEM GOAL:
+Design a portrait 4:5 social-media commercial real-estate advertisement poster optimized for Instagram/Facebook.
+Follow a luxury theme featuring deep emerald green (#062f21), crisp white cards, rich charcoal, and elegant gold accents (#d4af37).
 
-${designStyle ? `Use the following reference design style guidelines: ${designStyle}` : ""}
+## TASKS:
+1. HIGHLIGHTS EXTRACTION:
+   Extract 2 to 4 key, high-converting factual highlights present in the title OR description (e.g., "2400 SQ.FT", "SOUTH FACING", "DTCP APPROVED", "READY TO BUILD", "NEAR MAIN ROAD").
+   CRITICAL RULE: Only extract REAL factual details provided. Never invent features (such as fake approvals or amenities) if missing.
 
-Respond STRICTLY with a JSON object in this format (no markdown formatting, no other text):
+2. VISUAL PHOTOGRAPHY PROMPT FOR FLUX AI:
+   Write a visual-only image generation prompt for Pollinations AI (Flux model).
+   - Format: High-resolution professional real estate architectural photography occupying 50-60% of the upper poster.
+   - Genuine real estate photography only: DSLR wide-angle lens, sharp focus, natural daylight/golden hour, 100% photorealistic. Avoid CGI, 3D render, cartoon graphics, or fantasy architecture.
+   - Absolutely NO text, letters, numbers, logos, or watermarks in the visual.
+
+   CATEGORY SPECIFIC PHOTOGRAPHY RULES:
+   - For LAND / PLOT: Show a clean residential/commercial plot with clear boundary markers, developed asphalt road, green surrounding trees, blue sky, and a promising neighborhood.
+   - For HOUSE / VILLA: Show a modern realistic exterior of an independent house or luxury villa with landscaping.
+   - For APARTMENT: Show a modern realistic apartment building or gated residential community.
+   - For COMMERCIAL: Show a professional commercial building exterior, shopfront, or office complex.
+
+${designStyle ? `Use the following reference style guidelines: ${designStyle}` : ""}
+
+Respond STRICTLY with a JSON object in this exact format (no markdown code blocks, no extra text):
 {
-  "visualPrompt": "string (the visual-only image generation prompt)",
+  "visualPrompt": "string (the visual-only photography prompt)",
   "designPlan": {
     "colors": {
-      "primaryBg": "string (hex color, e.g. #062f21)",
-      "cardBg": "string (rgba color for translucent card, e.g. rgba(10, 25, 20, 0.85))",
-      "textPrimary": "string (hex color, e.g. #ffffff)",
-      "textSecondary": "string (hex color, e.g. #ffe082)",
-      "accentColor": "string (hex color, e.g. #facc15)",
-      "borderGold": "string (hex color, e.g. #d4af37)",
-      "featureBadgeBg": "string (rgba color, e.g. rgba(212, 175, 55, 0.15))"
+      "primaryBg": "#062f21",
+      "cardBg": "rgba(255, 255, 255, 0.95)",
+      "textPrimary": "#ffffff",
+      "textSecondary": "#ffe082",
+      "accentColor": "#facc15",
+      "borderGold": "#d4af37",
+      "featureBadgeBg": "rgba(6, 47, 33, 0.9)"
     },
     "typography": {
-      "titleSize": number (font size in px between 30 and 44),
-      "descSize": number (font size in px between 18 and 26),
-      "priceSize": number (font size in px between 28 and 38),
-      "ctaSize": number (font size in px between 16 and 24)
+      "titleSize": 40,
+      "descSize": 22,
+      "priceSize": 32,
+      "ctaSize": 20
     },
     "highlights": ["string", "string"]
   }
