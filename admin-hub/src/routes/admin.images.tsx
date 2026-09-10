@@ -186,37 +186,37 @@ const drawImage2MarketingFlyer = (
   if (includeImage && customImages && customImages.length > 0 && img && img.complete && img.naturalWidth > 0) {
     ctx.save();
     ctx.beginPath();
-    ctx.roundRect(0, 330, 1080, 310, 0);
+    ctx.roundRect(0, 450, 1080, 220, 0);
     ctx.clip();
-    canvasDrawImageCover(ctx, img, 0, 330, 1080, 310);
+    canvasDrawImageCover(ctx, img, 0, 450, 1080, 220);
     ctx.restore();
   }
 
-  // ── 3. TOP DARK GREEN TITLE BOX (y: 125) ──
+  // ── 3. TOP DARK GREEN TITLE BOX (y: 215) ──
   let mainTitle = formValues.title.trim().toUpperCase();
   if (!mainTitle || mainTitle === "HOUSE" || mainTitle === "LAND") {
     mainTitle = `${formValues.category.toUpperCase()} FOR ${formValues.listingType.toUpperCase()}`;
   }
   ctx.fillStyle = "#ffffff";
-  ctx.font = mainTitle.length > 28 ? "900 28px sans-serif" : "900 32px sans-serif";
+  ctx.font = mainTitle.length > 28 ? "900 26px sans-serif" : "900 30px sans-serif";
   ctx.textAlign = "left";
-  ctx.fillText(mainTitle.length > 30 ? mainTitle.slice(0, 28) + "…" : mainTitle, 65, 125);
+  ctx.fillText(mainTitle.length > 30 ? mainTitle.slice(0, 28) + "…" : mainTitle, 65, 215);
 
-  // ── 4. TOP GOLD BUSINESS NAME BOX (y: 230) ──
+  // ── 4. TOP GOLD BUSINESS NAME BOX (y: 305) ──
   const bizName = (formValues.businessName || "Sri Vignesh REAL ESTATES").toUpperCase();
   ctx.fillStyle = "#064e3b";
   ctx.font = bizName.length > 24 ? "bold 22px sans-serif" : "bold 24px sans-serif";
   ctx.textAlign = "left";
-  ctx.fillText(bizName.length > 28 ? bizName.slice(0, 26) + "…" : bizName, 65, 230);
+  ctx.fillText(bizName.length > 28 ? bizName.slice(0, 26) + "…" : bizName, 65, 305);
 
-  // ── 5. WHITE PILL LOCATION BOX (y: 302) ──
+  // ── 5. WHITE PILL LOCATION BOX (y: 405) ──
   const locStr = cleanText(formValues.address) || "Shanmuga Nagar, Trichy";
   ctx.fillStyle = "#064e3b";
   ctx.font = "bold 22px sans-serif";
   ctx.textAlign = "left";
-  ctx.fillText(locStr.length > 40 ? locStr.slice(0, 38) + "…" : locStr, 135, 302);
+  ctx.fillText(locStr.length > 40 ? locStr.slice(0, 38) + "…" : locStr, 135, 405);
 
-  // ── 6. 5-CARD KEY DETAILS ROW (y: 765) ──
+  // ── 6. 5-CARD KEY DETAILS ROW (y: 815) ──
   const sqftVal = highlights.find(h => /SQ\.?FT|SQFT|சதுர/i.test(h)) || "1200 Sq.ft";
   const priceVal = formValues.budget || "₹ 24 Lakhs";
   const typeVal = formValues.category || "Residential Plot";
@@ -234,10 +234,10 @@ const drawImage2MarketingFlyer = (
     ctx.font = "bold 16px sans-serif";
     ctx.textAlign = "center";
     const displayVal = c.val.length > 14 ? c.val.slice(0, 12) + "…" : c.val;
-    ctx.fillText(displayVal, c.cX, 765);
+    ctx.fillText(displayVal, c.cX, 815);
   });
 
-  // ── 7. HIGHLIGHTS 6 CHECKMARK BULLETS BOX (y: 865, 925, 985) ──
+  // ── 7. HIGHLIGHTS 6 CHECKMARK BULLETS BOX (y: 920, 980, 1040) ──
   const bulletItems = [
     "Prime Residential Area",
     "Near Schools & Colleges",
@@ -251,7 +251,7 @@ const drawImage2MarketingFlyer = (
     const col = idx % 2;
     const row = Math.floor(idx / 2);
     const bX = col === 0 ? 115 : 440;
-    const bY = 865 + row * 60;
+    const bY = 920 + row * 60;
 
     ctx.fillStyle = "#064e3b";
     ctx.font = "bold 17px sans-serif";
@@ -259,19 +259,19 @@ const drawImage2MarketingFlyer = (
     ctx.fillText(bText, bX, bY);
   });
 
-  // ── 8. GOLD PHONE BANNER (y: 1092) ──
+  // ── 8. GOLD PHONE BANNER (y: 1145) ──
   ctx.fillStyle = "#064e3b";
   ctx.font = "900 28px sans-serif";
   ctx.textAlign = "left";
-  ctx.fillText(formValues.phone || "+91 99521 31813", 135, 1092);
+  ctx.fillText(formValues.phone || "+91 99521 31813", 135, 1145);
 
-  // ── 9. BOTTOM FOOTER BAR (y: 1255) ──
+  // ── 9. BOTTOM FOOTER BAR (y: 1260) ──
   const igHandle = formValues.instagramUsername ? `@${formValues.instagramUsername.replace(/^@/, "")}` : formValues.businessName;
   ctx.fillStyle = "#ffffff";
   ctx.font = "bold 17px sans-serif";
   ctx.textAlign = "left";
-  ctx.fillText(locStr.length > 30 ? locStr.slice(0, 28) + "…" : locStr, 145, 1255);
-  ctx.fillText(igHandle.length > 25 ? igHandle.slice(0, 23) + "…" : igHandle, 650, 1255);
+  ctx.fillText(locStr.length > 30 ? locStr.slice(0, 28) + "…" : locStr, 145, 1260);
+  ctx.fillText(igHandle.length > 25 ? igHandle.slice(0, 23) + "…" : igHandle, 650, 1260);
 };
 
 function AdminImages() {
