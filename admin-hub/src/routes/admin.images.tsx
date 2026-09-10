@@ -309,11 +309,11 @@ function AdminImages() {
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [designPlan, setDesignPlan] = useState<any>(null);
   const [aiBackgroundUrl, setAiBackgroundUrl] = useState<string>("");
-  const [activePreviewSlide, setActivePreviewSlide] = useState<number>(2); // 0: Welcome Slide, 1: Original listing image, 2: Generated Flyer Poster
+  const [activePreviewSlide, setActivePreviewSlide] = useState<number>(0); // 0: Generated Poster, 1: Original listing media, 2: Brand Logo
   useEffect(() => {
     if (aiBackgroundUrl && aiBackgroundUrl.startsWith("data:image") && designPlan) {
       handleGeneratePoster();
-      setActivePreviewSlide(2); // Automatically display the generated flyer slide once rendered
+      setActivePreviewSlide(0); // Display the generated poster slide once rendered
     }
   }, [aiBackgroundUrl, designPlan]);
 
@@ -1672,7 +1672,73 @@ ${hashtags}`;
                 {/* 4:5 Scaled Card Frame (simulates 1080x1350) */}
                 <div className="w-full max-w-[340px] aspect-[4/5] rounded-lg border border-border shadow-sm overflow-hidden relative select-none bg-slate-950 flex items-center justify-center">
 
-                  {activePreviewSlide === 1 ? (
+                  {activePreviewSlide === 0 ? (
+                    generatedPoster ? (
+                      <img src={generatedPoster} alt="Slide 1: Generated Poster" className="w-full h-full object-contain" />
+                    ) : (
+                      <>
+                        {/* POSTER PLACEHOLDER (no poster generated yet) */}
+                        {selectedTemplate === "full_ai_poster" && (
+                          <div className="w-full h-full bg-gradient-to-b from-[#050b1a] to-[#030712] text-white flex flex-col justify-between p-3 relative font-sans text-[8px] border-4 border-[#d4af37] rounded shadow-inner">
+                            {/* Header */}
+                            <div className="flex items-center gap-1.5 border-b border-[#d4af37]/40 pb-1">
+                              <div className="w-6 h-6 rounded-full border-2 border-[#d4af37] bg-slate-800 flex items-center justify-center font-bold text-[4.5px] text-[#d4af37] shrink-0">NEARME</div>
+                              <div className="truncate">
+                                <h5 className="font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-yellow-400 uppercase text-[9px] leading-none truncate">{formValues.businessName || "BUSINESS NAME"}</h5>
+                                <span className="text-[5px] text-zinc-400 uppercase tracking-wide">Premium Gated Community</span>
+                              </div>
+                            </div>
+
+                            {/* Slanted Banner Box */}
+                            <div className="bg-slate-900 border border-[#d4af37]/60 p-1.5 rounded relative overflow-hidden my-0.5 select-none">
+                              <p className="text-[7px] font-bold text-white uppercase tracking-tight leading-none">WANT TO OWN A PLACE IN A PRIME LOCATION?</p>
+                              <div className="flex justify-between items-center mt-1">
+                                <div className="bg-gradient-to-r from-yellow-400 to-yellow-500 text-red-950 font-extrabold text-[8.5px] py-0.5 px-2 rounded uppercase leading-none shadow-sm">{formValues.budget || "BEST PRICES"}</div>
+                                <span className="text-[6.5px] text-zinc-300 font-medium">📍 Prime Neighborhood</span>
+                              </div>
+                            </div>
+
+                            {/* Mid Content */}
+                            <div className="flex flex-col flex-grow justify-between py-1 relative">
+                              {/* Image Frame (Full Width with Gold Border) */}
+                              <div className="w-full aspect-[16/9] max-h-[110px] rounded overflow-hidden border border-[#d4af37] bg-slate-800 shrink-0 self-center">
+                                {aiBackgroundUrl ? (
+                                  <img src={aiBackgroundUrl} alt="Main" className="w-full h-full object-cover" />
+                                ) : (
+                                  <div className="w-full h-full flex flex-col items-center justify-center text-[6px] text-zinc-400 gap-1">
+                                    <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                                    <span>AI image generating...</span>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Description Box Overlay */}
+                              <div className="bg-slate-950/80 border border-[#d4af37]/20 p-1 rounded mt-1.5 text-center">
+                                <p className="text-[6.5px] text-zinc-200 italic line-clamp-3 leading-snug font-medium">
+                                  {formValues.description || "Describe your premium listing highlights here..."}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Footer */}
+                            <div className="border-t border-[#d4af37]/40 pt-1 flex items-center justify-between text-[7px] text-zinc-300 leading-none">
+                              <div className="truncate max-w-[150px]">📍 {formValues.address}</div>
+                              <div className="font-bold text-[#d4af37] truncate">📞 {formValues.phone}</div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* PREMIUM FLYER (IMAGE 2 STYLE) PREVIEW PLACEHOLDER */}
+                        {selectedTemplate === "premium_flyer" && (
+                          <div className="w-full h-full bg-slate-950 flex flex-col items-center justify-center p-4 text-center space-y-2">
+                            <ImageIcon className="h-8 w-8 text-amber-500 animate-pulse" />
+                            <p className="text-xs font-bold text-white">Click "Generate Poster" below</p>
+                            <p className="text-[10px] text-zinc-400">To render the high-res marketing flyer poster canvas.</p>
+                          </div>
+                        )}
+                      </>
+                    )
+                  ) : activePreviewSlide === 1 ? (
                     allListingMedia.length > 0 ? (
                       <div className="w-full h-full bg-slate-900 overflow-y-auto flex flex-col p-1.5 gap-1.5">
                         <div className="text-[9px] text-zinc-400 font-black uppercase tracking-widest text-center shrink-0 pb-0.5 border-b border-slate-700">
@@ -1696,7 +1762,6 @@ ${hashtags}`;
                               )}
                               <div className="absolute bottom-0.5 left-0.5 bg-black/60 text-white text-[6px] px-1 rounded font-bold pointer-events-none">#{idx + 1}</div>
 
-                              {/* Delete button for removing duplicate/unwanted media */}
                               <button
                                 type="button"
                                 title="Remove this media item"
@@ -1717,232 +1782,8 @@ ${hashtags}`;
                     ) : (
                       <div className="text-zinc-400 text-xs font-semibold">No listing media available</div>
                     )
-                  ) : activePreviewSlide === 2 ? (
-                    <img src={`${BACKEND_URL}/uploads/brand_welcome.png`} alt="Slide 3: Branding Logo" className="w-full h-full object-cover" />
-                  ) : generatedPoster ? (
-                    <img src={generatedPoster} alt="Slide 1: Generated Poster" className="w-full h-full object-contain" />
                   ) : (
-                    <>
-                      {/* POSTER PLACEHOLDER (no poster generated yet) */}
-                      {selectedTemplate === "full_ai_poster" && (
-                        <div className="w-full h-full bg-gradient-to-b from-[#050b1a] to-[#030712] text-white flex flex-col justify-between p-3 relative font-sans text-[8px] border-4 border-[#d4af37] rounded shadow-inner">
-                          {/* Header */}
-                          <div className="flex items-center gap-1.5 border-b border-[#d4af37]/40 pb-1">
-                            <div className="w-6 h-6 rounded-full border-2 border-[#d4af37] bg-slate-800 flex items-center justify-center font-bold text-[4.5px] text-[#d4af37] shrink-0">NEARME</div>
-                            <div className="truncate">
-                              <h5 className="font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-yellow-400 uppercase text-[9px] leading-none truncate">{formValues.businessName || "BUSINESS NAME"}</h5>
-                              <span className="text-[5px] text-zinc-400 uppercase tracking-wide">Premium Gated Community</span>
-                            </div>
-                          </div>
-
-                          {/* Slanted Banner Box */}
-                          <div className="bg-slate-900 border border-[#d4af37]/60 p-1.5 rounded relative overflow-hidden my-0.5 select-none">
-                            <p className="text-[7px] font-bold text-white uppercase tracking-tight leading-none">WANT TO OWN A PLACE IN A PRIME LOCATION?</p>
-                            <div className="flex justify-between items-center mt-1">
-                              <div className="bg-gradient-to-r from-yellow-400 to-yellow-500 text-red-950 font-extrabold text-[8.5px] py-0.5 px-2 rounded uppercase leading-none shadow-sm">{formValues.budget || "BEST PRICES"}</div>
-                              <span className="text-[6.5px] text-zinc-300 font-medium">📍 Prime Neighborhood</span>
-                            </div>
-                          </div>
-
-                          {/* Mid Content */}
-                          <div className="flex flex-col flex-grow justify-between py-1 relative">
-                            {/* Image Frame (Full Width with Gold Border) */}
-                            <div className="w-full aspect-[16/9] max-h-[110px] rounded overflow-hidden border border-[#d4af37] bg-slate-800 shrink-0 self-center">
-                              {aiBackgroundUrl ? (
-                                <img src={aiBackgroundUrl} alt="Main" className="w-full h-full object-cover" />
-                              ) : (
-                                <div className="w-full h-full flex flex-col items-center justify-center text-[6px] text-zinc-400 gap-1">
-                                  <Loader2 className="h-3 w-3 animate-spin text-primary" />
-                                  <span>AI image generating...</span>
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Description Box Overlay */}
-                            <div className="bg-slate-950/80 border border-[#d4af37]/20 p-1 rounded mt-1.5 text-center">
-                              <p className="text-[6.5px] text-zinc-200 italic line-clamp-3 leading-snug font-medium">
-                                {formValues.description || "Describe your premium listing highlights here..."}
-                              </p>
-                            </div>
-                          </div>
-
-                          {/* Footer */}
-                          <div className="border-t border-[#d4af37]/40 pt-1 flex items-center justify-between text-[7px] text-zinc-300 leading-none">
-                            <div className="truncate max-w-[150px]">📍 {formValues.address}</div>
-                            <div className="font-bold text-[#d4af37] truncate">📞 {formValues.phone}</div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* PREMIUM FLYER (IMAGE 2 STYLE) PREVIEW */}
-                      {selectedTemplate === "premium_flyer" && (
-                        <div className="w-full h-full bg-gradient-to-b from-[#050b1a] to-[#030712] text-white flex flex-col justify-between p-3 relative font-sans text-[8px] border-4 border-[#d4af37] rounded shadow-inner">
-                          {/* Header */}
-                          <div className="flex items-center gap-1.5 border-b border-[#d4af37]/40 pb-1">
-                            <div className="w-6 h-6 rounded-full border-2 border-[#d4af37] bg-slate-800 flex items-center justify-center font-bold text-[4.5px] text-[#d4af37] shrink-0">NEARME</div>
-                            <div className="truncate">
-                              <h5 className="font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-yellow-400 uppercase text-[9px] leading-none truncate">{formValues.businessName || "BUSINESS NAME"}</h5>
-                              <span className="text-[5px] text-zinc-400 uppercase tracking-wide">Premium Gated Community</span>
-                            </div>
-                          </div>
-
-                          {/* Slanted Banner Box */}
-                          <div className="bg-slate-900 border border-[#d4af37]/60 p-1.5 rounded relative overflow-hidden my-0.5 select-none">
-                            <p className="text-[7px] font-bold text-white uppercase tracking-tight leading-none">WANT TO OWN A PLACE IN A PRIME LOCATION?</p>
-                            <div className="flex justify-between items-center mt-1">
-                              <div className="bg-gradient-to-r from-yellow-400 to-yellow-500 text-red-950 font-extrabold text-[8.5px] py-0.5 px-2 rounded uppercase leading-none shadow-sm">{formValues.budget || "BEST PRICES"}</div>
-                              <span className="text-[6.5px] text-zinc-300 font-medium">📍 Prime Neighborhood</span>
-                            </div>
-                          </div>
-
-                          {/* Mid Content */}
-                          <div className="flex flex-col flex-grow justify-between py-1 relative">
-                            {/* Image Frame (Full Width with Gold Border) */}
-                            <div className="w-full aspect-[16/9] max-h-[110px] rounded overflow-hidden border border-[#d4af37] bg-slate-800 shrink-0 self-center">
-                              {selectedImage ? (
-                                <img src={selectedImage} alt="Main" className="w-full h-full object-cover" />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center text-[6px] text-zinc-400">No image selected</div>
-                              )}
-                            </div>
-
-                            {/* Description Box Overlay */}
-                            <div className="bg-slate-950/80 border border-[#d4af37]/20 p-1 rounded mt-1.5 text-center">
-                              <p className="text-[6.5px] text-zinc-200 italic line-clamp-3 leading-snug font-medium">
-                                {formValues.description || "Describe your premium listing highlights here..."}
-                              </p>
-                            </div>
-                          </div>
-
-                          {/* Footer */}
-                          <div className="border-t border-[#d4af37]/40 pt-1 flex items-center justify-between text-[7px] text-zinc-300 leading-none">
-                            <div className="truncate max-w-[150px]">📍 {formValues.address}</div>
-                            <div className="font-bold text-[#d4af37] truncate">📞 {formValues.phone}</div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* MODERN LIGHT PREVIEW */}
-                      {selectedTemplate === "modern_light" && (
-                        <div className="w-full h-full bg-[#f8fafc] text-slate-800 flex flex-col justify-between p-3 relative font-sans text-[8px] border border-slate-200 shadow-inner">
-                          <div className="flex flex-col flex-grow justify-between relative">
-                            {/* Title banner */}
-                            <div className="shrink-0">
-                              <h5 className="font-extrabold text-[10px] text-slate-900 leading-tight line-clamp-2">{formValues.title || "Property Title"}</h5>
-                              <span className="text-[6px] font-bold text-slate-500 uppercase tracking-wider">{formValues.category} • FOR {formValues.listingType}</span>
-                            </div>
-
-                            {/* Center image frame */}
-                            <div className="w-full aspect-[4/3] rounded overflow-hidden border border-slate-200 bg-slate-100 my-1">
-                              {selectedImage ? (
-                                <img src={selectedImage} alt="Main light" className="w-full h-full object-cover" />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center text-[6px] text-slate-400">No image selected</div>
-                              )}
-                            </div>
-
-                            {/* Description brief */}
-                            <p className="text-[6.5px] text-slate-600 line-clamp-2 leading-relaxed italic">
-                              {formValues.description || "Listing description details..."}
-                            </p>
-                          </div>
-
-                          {/* Footer Info Box */}
-                          <div className="border-t border-slate-200 mt-1.5 pt-1 flex items-center justify-between text-[7.5px] text-slate-700 leading-none font-medium">
-                            <span className="truncate max-w-[130px]">📍 {formValues.address}</span>
-                            <span className="font-extrabold text-teal-600">{formValues.budget || "View Details"}</span>
-                            <span className="font-bold">📞 {formValues.phone}</span>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* DARK LUXURY PREVIEW */}
-                      {selectedTemplate === "dark_luxury" && (
-                        <div className="w-full h-full bg-slate-950 text-white flex flex-col justify-between p-4 relative font-sans text-[8px] border-2 border-amber-500/20 shadow-2xl">
-                          <div className="flex flex-col flex-grow justify-between">
-                            {/* Luxury header */}
-                            <div className="text-center shrink-0 space-y-0.5 border-b border-amber-500/20 pb-1.5">
-                              <h5 className="font-serif tracking-widest text-[#d4af37] text-[10px] font-bold uppercase">{formValues.businessName}</h5>
-                              <span className="text-[5px] tracking-wider text-slate-400 uppercase">Luxury Real Estate Portfolio</span>
-                            </div>
-
-                            {/* Circle image container frame */}
-                            <div className="w-[90px] h-[90px] rounded-full overflow-hidden border-2 border-[#d4af37] bg-slate-900 mx-auto my-1.5 flex items-center justify-center shrink-0">
-                              {selectedImage ? (
-                                <img src={selectedImage} alt="Luxury visual" className="w-full h-full object-cover" />
-                              ) : (
-                                <span className="text-[5px] text-slate-400">No Image</span>
-                              )}
-                            </div>
-
-                            {/* Title and details */}
-                            <div className="text-center space-y-1">
-                              <h4 className="font-serif text-[#d4af37] text-[9.5px] leading-tight font-black line-clamp-1 uppercase">{formValues.title}</h4>
-                              <p className="text-[6.5px] text-slate-300 line-clamp-2 italic leading-relaxed px-1">
-                                {formValues.description}
-                              </p>
-                            </div>
-                          </div>
-
-                          {/* Contact and address footer */}
-                          <div className="border-t border-amber-500/20 mt-1.5 pt-1.5 flex items-center justify-between text-[7px] text-slate-400">
-                            <span className="truncate max-w-[130px]">📍 {formValues.address}</span>
-                            <span className="font-bold text-[#d4af37] text-[8px]">{formValues.budget}</span>
-                            <span className="font-bold text-white">📞 {formValues.phone}</span>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* BOLD TEAL PREVIEW */}
-                      {selectedTemplate === "bold_teal" && (
-                        <div className="w-full h-full bg-teal-950 text-white flex flex-col justify-between p-3.5 relative font-sans text-[8px] border-l-[12px] border-teal-500 shadow-lg">
-                          <div className="flex flex-col flex-grow justify-between">
-                            <div className="space-y-1 shrink-0">
-                              <div className="flex gap-1">
-                                <Badge className="bg-yellow-400 text-teal-950 font-bold text-[8px] py-0 px-1 hover:bg-yellow-400">{formValues.category.toUpperCase()}</Badge>
-                                <Badge className="bg-white text-teal-800 font-bold text-[8px] py-0 px-1 hover:bg-white">FOR {formValues.listingType.toUpperCase()}</Badge>
-                              </div>
-                              <h4 className="font-bold text-[13px] leading-tight line-clamp-2">{formValues.title || "Property Title"}</h4>
-                              <p className="text-yellow-300 font-extrabold text-[14px]">{formValues.budget || "Budget"}</p>
-                            </div>
-
-                            <div className="bg-white rounded p-1.5 flex items-center justify-between text-[9px] text-teal-900 font-bold">
-                              <span>📍 {formValues.address || "Location"}</span>
-                              <span>📞 {formValues.phone || "Call"}</span>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* WARM SUNSET PREVIEW */}
-                      {selectedTemplate === "warm_sunset" && (
-                        <div className="w-full h-full bg-gradient-to-br from-orange-400 to-amber-300 flex flex-col justify-between p-4 relative text-xs font-sans">
-                          {selectedImage ? (
-                            <div className="w-full h-[48%] rounded-lg overflow-hidden border border-orange-500/20">
-                              <img src={selectedImage} alt="Main select" className="w-full h-full object-cover" />
-                            </div>
-                          ) : (
-                            <div className="w-full h-[48%] bg-muted flex items-center justify-center text-[10px]">No image selected</div>
-                          )}
-
-                          <div className="bg-white rounded-xl p-3 flex-1 mt-2.5 flex flex-col justify-between text-slate-800 shadow-sm border border-orange-500/10">
-                            <div className="space-y-1">
-                              <h4 className="font-bold text-[12px] leading-tight text-slate-800 line-clamp-2">{formValues.title || "Property Title"}</h4>
-                              <div className="flex gap-1">
-                                <Badge className="bg-orange-500 hover:bg-orange-500 text-white text-[7px] py-0.2 px-1 rounded">{formValues.category.toUpperCase()}</Badge>
-                                <Badge className="bg-[#319795] hover:bg-[#319795] text-white text-[7px] py-0.2 px-1 rounded">{formValues.listingType.toUpperCase()}</Badge>
-                              </div>
-                            </div>
-
-                            <div className="pt-1.5 border-t border-slate-100 flex flex-col gap-1 text-[9px] text-slate-500">
-                              <span className="text-orange-500 font-extrabold text-[12px]">{formValues.budget || "Budget"}</span>
-                              <span className="truncate">📍 {formValues.address}</span>
-                              <span className="font-bold text-slate-700">📞 Call: {formValues.phone}</span>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </>
+                    <img src={`${BACKEND_URL}/uploads/brand_welcome.png`} alt="Slide 3: Branding Logo" className="w-full h-full object-cover" />
                   )}
                 </div>
 
