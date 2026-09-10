@@ -606,14 +606,40 @@ export const generatePoster = async (req: Request, res: Response) => {
     let designPlan = IMAGE2_DEFAULT_DESIGN_PLAN;
 
     if (mode === "full_poster") {
-      const cleanTitle = title || "Premium Property";
+      const cleanTitle = title || "PREMIUM REAL ESTATE PROPERTY";
       const cleanCategory = category || "Real Estate";
       const cleanLocation = address || "Trichy";
-      const cleanBudget = budget ? `Starting at ${budget}` : "Best Price Guaranteed";
-      const cleanPhone = phone || "+91 9952131813";
+      const cleanBudget = budget ? `Price: ${budget}` : "Best Price Guaranteed";
+      const cleanPhone = phone || "Contact Us";
       const cleanBiz = businessName || "POWER GROUP REAL ESTATE";
+      const cleanInsta = instagramUsername ? `@${instagramUsername.replace(/^@/, "")}` : "";
 
-      visualPrompt = `A high-converting professional marketing agency real estate promotional advertisement poster for '${cleanTitle}' in ${cleanLocation}. The upper half features a stunning photorealistic 3D rendering of a lush green ${cleanCategory} site layout with clean asphalt roads, demarcated plots, street lamps, and a happy Indian family looking towards the property under a bright blue sunny sky. The graphic design overlays include: Top left professional corporate logo '${cleanBiz}'. High impact bold typography title '${cleanTitle} - ${cleanLocation}'. Prominent vibrant red and gold badge reading '${cleanBudget}'. Graphic feature badges for 'DTCP Approved Layout', 'Free Patta & Registration', 'Immediate Registration'. Bottom dark green banner with phone icon 'Call / WhatsApp: ${cleanPhone}' and location '${cleanLocation}'. High quality, vibrant colors, professional 8k social media advertisement poster design.`;
+      visualPrompt = `A premium, professional, high-converting REAL ESTATE PROPERTY ADVERTISEMENT POSTER in 4:5 portrait aspect ratio for social media advertising (Instagram and Facebook).
+
+DESIGN STYLE: Luxury commercial real estate advertisement with deep emerald green (#062f21), pure white, charcoal, and elegant gold accents (#d4af37). Clean trustworthy layout, professional typography, strong visual hierarchy, zero clutter.
+
+TOP BRANDING:
+- Prominent corporate logo and company name: '${cleanBiz}'
+- Elegant tagline: 'Your Dream Property, Your Future'
+- Small gold badge: 'REAL ESTATE - PROPERTY FOR SALE'
+
+AUTOMATIC PROPERTY VISUAL:
+- Upper 50-60% hero section: A photorealistic, high-resolution DSLR architectural photograph of a ${cleanCategory} (${cleanTitle}) in ${cleanLocation}. Realistic asphalt road, clean plot boundary, greenery, blue sky, natural daylight. 100% photorealistic photography.
+
+MAIN PROPERTY SECTION:
+- High-impact bold main headline: '${cleanTitle.toUpperCase()}'
+- Location badge with location pin icon: '📍 ${cleanLocation.toUpperCase()}'
+- Prominent price badge: '${cleanBudget}'
+
+KEY DETAILS & HIGHLIGHTS:
+- Clean information cards and checkmark badges: '✓ Prime Location', '✓ Clear Title Documents', '✓ Ready for Construction', '✓ Good Road Connectivity'
+
+CALL TO ACTION (CTA) & FOOTER:
+- Strong CTA banner: 'SCHEDULE YOUR SITE VISIT TODAY'
+- Prominent phone contact: '📞 Call / WhatsApp: ${cleanPhone}'
+- Social media handle: '${cleanInsta}'
+
+High-resolution 8k, professional Indian real-estate marketing agency advertisement poster.`;
     } else {
       let designStyle = IMAGE2_DEFAULT_STYLE;
       if (referenceImage) {
