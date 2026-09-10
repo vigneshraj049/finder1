@@ -973,9 +973,9 @@ ${hashtags}`;
             bgImg.onload = () => resolve();
             bgImg.onerror = () => resolve();
           });
-          ctx.drawImage(bgImg, 0, 0, 1080, 1350);
+          drawImage2MarketingFlyer(ctx, img, formValues, designPlan, includeImage, bgImg);
         } else {
-          throw new Error("Failed to generate AI poster image");
+          drawImage2MarketingFlyer(ctx, img, formValues, designPlan, includeImage);
         }
       } else if (selectedTemplate === "full_ai_poster" || selectedTemplate === "premium_flyer") {
         let activeDesignPlan = designPlan;
