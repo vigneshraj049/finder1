@@ -192,7 +192,7 @@ const drawImage2MarketingFlyer = (
     ctx.restore();
   }
 
-  // ── 3. TOP DARK GREEN TITLE BOX (y: 215) ──
+  // ── 3. TOP DARK GREEN TITLE BOX (y: 185) ──
   let mainTitle = formValues.title.trim().toUpperCase();
   if (!mainTitle || mainTitle === "HOUSE" || mainTitle === "LAND") {
     mainTitle = `${formValues.category.toUpperCase()} FOR ${formValues.listingType.toUpperCase()}`;
@@ -200,23 +200,23 @@ const drawImage2MarketingFlyer = (
   ctx.fillStyle = "#ffffff";
   ctx.font = mainTitle.length > 28 ? "900 26px sans-serif" : "900 30px sans-serif";
   ctx.textAlign = "left";
-  ctx.fillText(mainTitle.length > 30 ? mainTitle.slice(0, 28) + "…" : mainTitle, 65, 215);
+  ctx.fillText(mainTitle.length > 30 ? mainTitle.slice(0, 28) + "…" : mainTitle, 65, 185);
 
-  // ── 4. TOP GOLD BUSINESS NAME BOX (y: 305) ──
+  // ── 4. TOP GOLD BUSINESS NAME BOX (y: 268) ──
   const bizName = (formValues.businessName || "Sri Vignesh REAL ESTATES").toUpperCase();
   ctx.fillStyle = "#064e3b";
   ctx.font = bizName.length > 24 ? "bold 22px sans-serif" : "bold 24px sans-serif";
   ctx.textAlign = "left";
-  ctx.fillText(bizName.length > 28 ? bizName.slice(0, 26) + "…" : bizName, 65, 305);
+  ctx.fillText(bizName.length > 28 ? bizName.slice(0, 26) + "…" : bizName, 65, 268);
 
-  // ── 5. WHITE PILL LOCATION BOX (y: 405) ──
+  // ── 5. WHITE PILL LOCATION BOX (y: 348) ──
   const locStr = cleanText(formValues.address) || "Shanmuga Nagar, Trichy";
   ctx.fillStyle = "#064e3b";
   ctx.font = "bold 22px sans-serif";
   ctx.textAlign = "left";
-  ctx.fillText(locStr.length > 40 ? locStr.slice(0, 38) + "…" : locStr, 135, 405);
+  ctx.fillText(locStr.length > 40 ? locStr.slice(0, 38) + "…" : locStr, 135, 348);
 
-  // ── 6. 5-CARD KEY DETAILS ROW (y: 815) ──
+  // ── 6. 5-CARD KEY DETAILS ROW (y: 790) ──
   const sqftVal = highlights.find(h => /SQ\.?FT|SQFT|சதுர/i.test(h)) || "1200 Sq.ft";
   const priceVal = formValues.budget || "₹ 24 Lakhs";
   const typeVal = formValues.category || "Residential Plot";
@@ -234,10 +234,10 @@ const drawImage2MarketingFlyer = (
     ctx.font = "bold 16px sans-serif";
     ctx.textAlign = "center";
     const displayVal = c.val.length > 14 ? c.val.slice(0, 12) + "…" : c.val;
-    ctx.fillText(displayVal, c.cX, 815);
+    ctx.fillText(displayVal, c.cX, 790);
   });
 
-  // ── 7. HIGHLIGHTS 6 CHECKMARK BULLETS BOX (y: 920, 980, 1040) ──
+  // ── 7. HIGHLIGHTS 6 CHECKMARK BULLETS BOX (y: 890, 945, 1000) ──
   const bulletItems = [
     "Prime Residential Area",
     "Near Schools & Colleges",
@@ -251,27 +251,27 @@ const drawImage2MarketingFlyer = (
     const col = idx % 2;
     const row = Math.floor(idx / 2);
     const bX = col === 0 ? 115 : 440;
-    const bY = 920 + row * 60;
+    const bY = 890 + row * 55;
 
     ctx.fillStyle = "#064e3b";
-    ctx.font = "bold 17px sans-serif";
+    ctx.font = "bold 16px sans-serif";
     ctx.textAlign = "left";
     ctx.fillText(bText, bX, bY);
   });
 
-  // ── 8. GOLD PHONE BANNER (y: 1145) ──
+  // ── 8. GOLD PHONE BANNER (y: 1080) ──
   ctx.fillStyle = "#064e3b";
   ctx.font = "900 28px sans-serif";
   ctx.textAlign = "left";
-  ctx.fillText(formValues.phone || "+91 99521 31813", 135, 1145);
+  ctx.fillText(formValues.phone || "+91 99521 31813", 135, 1080);
 
-  // ── 9. BOTTOM FOOTER BAR (y: 1260) ──
+  // ── 9. BOTTOM FOOTER BAR (y: 1255) ──
   const igHandle = formValues.instagramUsername ? `@${formValues.instagramUsername.replace(/^@/, "")}` : formValues.businessName;
   ctx.fillStyle = "#ffffff";
   ctx.font = "bold 17px sans-serif";
   ctx.textAlign = "left";
-  ctx.fillText(locStr.length > 30 ? locStr.slice(0, 28) + "…" : locStr, 145, 1260);
-  ctx.fillText(igHandle.length > 25 ? igHandle.slice(0, 23) + "…" : igHandle, 650, 1260);
+  ctx.fillText(locStr.length > 30 ? locStr.slice(0, 28) + "…" : locStr, 145, 1255);
+  ctx.fillText(igHandle.length > 25 ? igHandle.slice(0, 23) + "…" : igHandle, 650, 1255);
 };
 
 function AdminImages() {
