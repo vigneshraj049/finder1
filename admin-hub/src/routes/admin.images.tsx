@@ -179,199 +179,71 @@ const drawImage2MarketingFlyer = (
 
   const highlights = extractFlyerHighlights(formValues.description, formValues.title, designPlan, formValues.budget);
 
-  // Full Poster Background (Light Cream/White canvas base)
-  ctx.fillStyle = "#f8fafc";
-  ctx.fillRect(0, 0, 1080, 1350);
-
-  // Top Light Gradient Header Background (y: 0–310)
-  const topGrad = ctx.createLinearGradient(0, 0, 0, 310);
-  topGrad.addColorStop(0, "#ffffff");
-  topGrad.addColorStop(1, "#f1f5f9");
-  ctx.fillStyle = topGrad;
-  ctx.fillRect(0, 0, 1080, 310);
-
-  // ── 1. TOP BRANDING HEADER (y: 20–100) ──
-  // Top-Left Logo / Business Name
-  ctx.fillStyle = "#d97706";
-  ctx.beginPath();
-  ctx.arc(65, 60, 26, 0, Math.PI * 2);
-  ctx.fill();
-
-  const bizName = (formValues.businessName || "Sri Vignesh REAL ESTATES").toUpperCase();
-  ctx.fillStyle = "#0f172a";
-  ctx.font = bizName.length > 22 ? "900 28px sans-serif" : "900 34px sans-serif";
-  ctx.textAlign = "left";
-  ctx.fillText(bizName, 105, 55);
-
-  ctx.fillStyle = "#64748b";
-  ctx.font = "italic 15px sans-serif";
-  ctx.fillText("Your Dream Plot, Our Commitment!", 105, 78);
-
-  // Tagline Right
-  ctx.fillStyle = "#ca8a04";
-  ctx.font = "italic 16px serif";
-  ctx.textAlign = "right";
-  ctx.fillText("Build Your Tomorrow Today!", 820, 60);
-
-  // Top-Right Slanted Badge (DTCP APPROVED PLOTS)
-  const sealW = 210, sealH = 80;
-  ctx.fillStyle = "#064e3b";
-  ctx.beginPath();
-  ctx.roundRect(1080 - sealW - 30, 20, sealW, sealH, 12);
-  ctx.fill();
-  ctx.strokeStyle = "#f59e0b";
-  ctx.lineWidth = 3;
-  ctx.stroke();
-
-  ctx.fillStyle = "#facc15";
-  ctx.font = "900 18px sans-serif";
-  ctx.textAlign = "center";
-  ctx.fillText("DTCP", 1080 - sealW / 2 - 30, 48);
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "bold 14px sans-serif";
-  ctx.fillText("APPROVED PLOTS", 1080 - sealW / 2 - 30, 72);
-
-  // ── 2. MAIN HEADLINE & LOCATION (y: 120–290) ──
-  let rawTitle = formValues.title.trim().toUpperCase();
-  if (!rawTitle || rawTitle === "HOUSE" || rawTitle === "LAND") {
-    rawTitle = `${formValues.category.toUpperCase()} FOR ${formValues.listingType.toUpperCase()}`;
+  // ── 1. DRAW MASTER REFERENCE TEMPLATE BACKGROUND ──
+  if (masterTemplateImg && masterTemplateImg.complete && masterTemplateImg.naturalWidth > 0) {
+    ctx.drawImage(masterTemplateImg, 0, 0, 1080, 1350);
+  } else {
+    // Fallback Light Cream Background
+    ctx.fillStyle = "#f8fafc";
+    ctx.fillRect(0, 0, 1080, 1350);
   }
 
-  // Large Bold Title Line 1
-  ctx.fillStyle = "#0f172a";
-  ctx.font = "900 48px sans-serif";
-  ctx.textAlign = "left";
-  ctx.fillText(rawTitle.length > 26 ? rawTitle.slice(0, 26) : rawTitle, 50, 160);
-
-  // FOR SALE Title Line 2
-  ctx.fillStyle = "#d97706";
-  ctx.font = "900 48px sans-serif";
-  ctx.fillText(`FOR ${formValues.listingType.toUpperCase() || "SALE"}`, 50, 215);
-
-  // Location Line
-  const locStr = formValues.address ? `📍 ${cleanText(formValues.address).toUpperCase()}` : "📍 TRICHY, TAMIL NADU";
-  ctx.fillStyle = "#dc2626";
-  ctx.font = "bold 22px sans-serif";
-  ctx.fillText(locStr.length > 42 ? locStr.slice(0, 40) + "…" : locStr, 50, 255);
-
-  // Sub-features line
-  ctx.fillStyle = "#475569";
-  ctx.font = "600 16px sans-serif";
-  ctx.fillText("Prime Location   |   Peaceful Neighborhood   |   Great Future Value", 50, 285);
-
-  // ── 3. HERO PROPERTY PHOTO (y: 305–725) ──
-  const photoX = 50, photoY = 305, photoW = 980, photoH = 420;
-  const centerImg = bgImg ? bgImg : img;
-
-  if (includeImage && centerImg && centerImg.complete && centerImg.naturalWidth > 0) {
+  // ── 2. HERO CUSTOM PROPERTY PHOTO OVERLAY (If user uploaded/selected custom photo) ──
+  if (includeImage && img && img.complete && img.naturalWidth > 0 && !img.src.includes("unsplash.com") && !img.src.includes("brand_welcome")) {
     ctx.save();
     ctx.beginPath();
-    ctx.roundRect(photoX, photoY, photoW, photoH, 16);
+    ctx.roundRect(40, 360, 1000, 310, 12);
     ctx.clip();
-    canvasDrawImageCover(ctx, centerImg, photoX, photoY, photoW, photoH);
+    canvasDrawImageCover(ctx, img, 40, 360, 1000, 310);
     ctx.restore();
-  } else {
-    ctx.fillStyle = "#0a3d2b";
-    ctx.beginPath();
-    ctx.roundRect(photoX, photoY, photoW, photoH, 16);
-    ctx.fill();
-    ctx.fillStyle = "#4a7c59";
-    ctx.font = "bold 28px sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText("PROPERTY PHOTO", photoX + photoW / 2, photoY + photoH / 2);
   }
-  ctx.strokeStyle = "#d97706";
-  ctx.lineWidth = 4;
-  ctx.beginPath();
-  ctx.roundRect(photoX, photoY, photoW, photoH, 16);
-  ctx.stroke();
 
-  // Overlaid Badge on left side of photo
-  ctx.fillStyle = "#064e3b";
-  ctx.beginPath();
-  ctx.moveTo(photoX, photoY + 240);
-  ctx.lineTo(photoX + 240, photoY + 240);
-  ctx.lineTo(photoX + 260, photoY + 295);
-  ctx.lineTo(photoX, photoY + 295);
-  ctx.closePath();
-  ctx.fill();
-  ctx.strokeStyle = "#facc15";
-  ctx.lineWidth = 2;
-  ctx.stroke();
-
-  ctx.fillStyle = "#facc15";
-  ctx.font = "italic bold 18px serif";
+  // ── 3. TOP DARK GREEN TITLE BOX (y: 110–190) ──
+  let mainTitle = formValues.title.trim().toUpperCase();
+  if (!mainTitle || mainTitle === "HOUSE" || mainTitle === "LAND") {
+    mainTitle = `${formValues.category.toUpperCase()} FOR ${formValues.listingType.toUpperCase()}`;
+  }
+  ctx.fillStyle = "#ffffff";
+  ctx.font = mainTitle.length > 28 ? "900 30px sans-serif" : "900 36px sans-serif";
   ctx.textAlign = "left";
-  ctx.fillText("Limited Plots Available", photoX + 20, photoY + 276);
+  ctx.fillText(mainTitle.length > 32 ? mainTitle.slice(0, 30) + "…" : mainTitle, 65, 160);
 
-  // ── 4. KEY DETAILS 5-CARD ROW (y: 745–885) ──
+  // ── 4. TOP GOLD BUSINESS NAME BOX (y: 200–260) ──
+  const bizName = (formValues.businessName || "Sri Vignesh REAL ESTATES").toUpperCase();
+  ctx.fillStyle = "#064e3b";
+  ctx.font = bizName.length > 24 ? "bold 22px sans-serif" : "bold 26px sans-serif";
+  ctx.textAlign = "left";
+  ctx.fillText(bizName.length > 28 ? bizName.slice(0, 26) + "…" : bizName, 65, 240);
+
+  // ── 5. WHITE PILL LOCATION BOX (y: 275–335) ──
+  const locStr = cleanText(formValues.address) || "Shanmuga Nagar, Trichy";
+  ctx.fillStyle = "#064e3b";
+  ctx.font = "bold 24px sans-serif";
+  ctx.textAlign = "left";
+  ctx.fillText(locStr.length > 40 ? locStr.slice(0, 38) + "…" : locStr, 135, 312);
+
+  // ── 6. 5-CARD KEY DETAILS ROW (y: 575–625) ──
   const sqftVal = highlights.find(h => /SQ\.?FT|SQFT|சதுர/i.test(h)) || "1200 Sq.ft";
   const priceVal = formValues.budget || "₹ 24 Lakhs";
-  const typeVal = formValues.category || "Plot";
+  const typeVal = formValues.category || "Residential Plot";
 
   const cardsData = [
-    { title: "PLOT SIZE", val: sqftVal, icon: "📐" },
-    { title: "PRICE", val: priceVal, icon: "💰" },
-    { title: "ROAD WIDTH", val: "30 Feet", icon: "🛣" },
-    { title: "APPROVAL", val: "DTCP Approved", icon: "📜" },
-    { title: "TYPE", val: typeVal, icon: "🏡" },
+    { val: sqftVal, cX: 135 },
+    { val: priceVal, cX: 325 },
+    { val: "30 Feet", cX: 515 },
+    { val: "DTCP Approved", cX: 705 },
+    { val: typeVal, cX: 895 },
   ];
 
-  const cardW = 180, cardH = 130, cardGap = 20;
-  cardsData.forEach((c, i) => {
-    const cX = photoX + i * (cardW + cardGap);
-    const cY = 745;
-
-    ctx.fillStyle = "#ffffff";
-    ctx.beginPath();
-    ctx.roundRect(cX, cY, cardW, cardH, 12);
-    ctx.fill();
-    ctx.strokeStyle = "#cbd5e1";
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-
-    // Icon
+  cardsData.forEach((c) => {
     ctx.fillStyle = "#064e3b";
-    ctx.font = "20px sans-serif";
+    ctx.font = "bold 17px sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText(c.icon, cX + cardW / 2, cY + 32);
-
-    // Title
-    ctx.fillStyle = "#64748b";
-    ctx.font = "bold 12px sans-serif";
-    ctx.fillText(c.title, cX + cardW / 2, cY + 58);
-
-    // Value
-    ctx.fillStyle = "#0f172a";
-    ctx.font = "bold 15px sans-serif";
-    const displayVal = c.val.length > 13 ? c.val.slice(0, 11) + "…" : c.val;
-    ctx.fillText(displayVal, cX + cardW / 2, cY + 88);
+    const displayVal = c.val.length > 14 ? c.val.slice(0, 12) + "…" : c.val;
+    ctx.fillText(displayVal, c.cX, 608);
   });
 
-  // ── 5. PROPERTY HIGHLIGHTS & INVESTMENT EMBLEM (y: 895–1165) ──
-  // Left Box: Property Highlights (Width 640px)
-  const hBoxX = 50, hBoxY = 895, hBoxW = 640, hBoxH = 265;
-
-  ctx.fillStyle = "#ffffff";
-  ctx.beginPath();
-  ctx.roundRect(hBoxX, hBoxY, hBoxW, hBoxH, 14);
-  ctx.fill();
-  ctx.strokeStyle = "#cbd5e1";
-  ctx.lineWidth = 1.5;
-  ctx.stroke();
-
-  // Highlights Header Strip
-  ctx.fillStyle = "#064e3b";
-  ctx.beginPath();
-  ctx.roundRect(hBoxX, hBoxY, hBoxW, 44, { tl: 14, tr: 14, bl: 0, br: 0 });
-  ctx.fill();
-
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "bold 16px sans-serif";
-  ctx.textAlign = "left";
-  ctx.fillText("PROPERTY HIGHLIGHTS", hBoxX + 20, hBoxY + 28);
-
-  // 6 Checkmark bullets in 2 columns
+  // ── 7. HIGHLIGHTS 6 CHECKMARK BULLETS BOX (y: 690–810) ──
   const bulletItems = [
     "Prime Residential Area",
     "Near Schools & Colleges",
@@ -384,80 +256,27 @@ const drawImage2MarketingFlyer = (
   bulletItems.forEach((bText, idx) => {
     const col = idx % 2;
     const row = Math.floor(idx / 2);
-    const bX = hBoxX + 20 + col * 310;
-    const bY = hBoxY + 78 + row * 58;
+    const bX = 115 + col * 310;
+    const bY = 712 + row * 40;
 
-    // Checkmark circle
-    ctx.fillStyle = "#15803d";
-    ctx.beginPath();
-    ctx.arc(bX + 10, bY - 4, 11, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 13px sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText("✓", bX + 10, bY);
-
-    // Bullet text
     ctx.fillStyle = "#1e293b";
-    ctx.font = "bold 15px sans-serif";
+    ctx.font = "bold 16px sans-serif";
     ctx.textAlign = "left";
-    ctx.fillText(bText, bX + 28, bY);
+    ctx.fillText(bText, bX, bY);
   });
 
-  // Right Side: Invest in Land Badge (Circle emblem)
-  const circleX = 860, circleY = 1025, circleR = 115;
-  ctx.fillStyle = "#fef3c7";
-  ctx.beginPath();
-  ctx.arc(circleX, circleY, circleR, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.strokeStyle = "#d97706";
-  ctx.lineWidth = 3;
-  ctx.stroke();
-
-  // Tree icon inside emblem
-  ctx.fillStyle = "#15803d";
-  ctx.font = "36px sans-serif";
-  ctx.textAlign = "center";
-  ctx.fillText("🌳", circleX, circleY - 30);
-
-  ctx.fillStyle = "#78350f";
-  ctx.font = "bold 18px sans-serif";
-  ctx.fillText("Invest in", circleX, circleY + 10);
-  ctx.fillStyle = "#b45309";
-  ctx.font = "900 26px sans-serif";
-  ctx.fillText("LAND", circleX, circleY + 40);
-  ctx.fillStyle = "#78350f";
-  ctx.font = "italic 13px serif";
-  ctx.fillText("Invest in a Better Future", circleX, circleY + 65);
-
-  // ── 6. BOTTOM CONTACT BANNER (y: 1180–1325) ──
-  const bX = 50, bY = 1180, bW = 980, bH = 135;
-  ctx.fillStyle = "#064e3b";
-  ctx.beginPath();
-  ctx.roundRect(bX, bY, bW, bH, 16);
-  ctx.fill();
-
-  // Contact Phone Left
-  ctx.fillStyle = "#facc15";
-  ctx.font = "bold 15px sans-serif";
-  ctx.textAlign = "left";
-  ctx.fillText("Call Now for Details", bX + 30, bY + 38);
-
+  // ── 8. GOLD PHONE BANNER (x: 140–420, y: 840–920) ──
   ctx.fillStyle = "#ffffff";
-  ctx.font = "900 38px sans-serif";
-  ctx.fillText(`📞 ${formValues.phone || "+91 99521 31813"}`, bX + 30, bY + 92);
+  ctx.font = "900 26px sans-serif";
+  ctx.textAlign = "left";
+  ctx.fillText(formValues.phone || "+91 99521 31813", 140, 878);
 
-  // Instagram handle & promoter badge right
+  // ── 9. BOTTOM FOOTER BAR (y: 1315) ──
   const igHandle = formValues.instagramUsername ? `@${formValues.instagramUsername.replace(/^@/, "")}` : formValues.businessName;
-  ctx.fillStyle = "#facc15";
-  ctx.font = "bold 18px sans-serif";
-  ctx.textAlign = "right";
-  ctx.fillText(`📱 ${igHandle}`, bX + bW - 30, bY + 50);
-
-  ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
-  ctx.font = "14px sans-serif";
-  ctx.fillText("Verified Real Estate Agency", bX + bW - 30, bY + 85);
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 16px sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText(`📍 ${locStr}   |   📱 ${igHandle}`, 540, 1318);
 };
 
 function AdminImages() {
@@ -947,6 +766,14 @@ ${hashtags}`;
         });
       }
 
+      // Preload Master Blank Template Image
+      const masterTemplateImg = new Image();
+      masterTemplateImg.src = "/poster_master_template.jpg";
+      await new Promise<void>((resolve) => {
+        masterTemplateImg.onload = () => resolve();
+        masterTemplateImg.onerror = () => resolve();
+      });
+
       if (selectedTemplate === "direct_ai_ad") {
         toast.loading("AI is generating your complete photorealistic agency poster...", { id: "poster-gen" });
         const aiRes = await fetch(`${API_BASE}/instagram/generate-poster`, {
@@ -973,9 +800,9 @@ ${hashtags}`;
             bgImg.onload = () => resolve();
             bgImg.onerror = () => resolve();
           });
-          drawImage2MarketingFlyer(ctx, img, formValues, designPlan, includeImage, bgImg);
+          ctx.drawImage(bgImg, 0, 0, 1080, 1350);
         } else {
-          drawImage2MarketingFlyer(ctx, img, formValues, designPlan, includeImage);
+          throw new Error("Failed to generate AI poster image");
         }
       } else if (selectedTemplate === "full_ai_poster" || selectedTemplate === "premium_flyer") {
         let activeDesignPlan = designPlan;
@@ -1025,9 +852,9 @@ ${hashtags}`;
         }
 
         if (selectedTemplate === "full_ai_poster") {
-          drawImage2MarketingFlyer(ctx, img, formValues, activeDesignPlan, includeImage, bgImg);
+          drawImage2MarketingFlyer(ctx, img, formValues, activeDesignPlan, includeImage, bgImg, masterTemplateImg);
         } else {
-          drawImage2MarketingFlyer(ctx, img, formValues, activeDesignPlan, includeImage);
+          drawImage2MarketingFlyer(ctx, img, formValues, activeDesignPlan, includeImage, null, masterTemplateImg);
         }
       } else if (selectedTemplate === "dark_luxury") {
         // Dark theme background
