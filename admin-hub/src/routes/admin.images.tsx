@@ -164,7 +164,8 @@ const drawImage2MarketingFlyer = (
   formValues: FlyerFormValues,
   designPlan: any,
   includeImage: boolean,
-  bgImg?: HTMLImageElement | null
+  bgImg?: HTMLImageElement | null,
+  masterTemplateImg?: HTMLImageElement | null
 ) => {
   const cleanText = (str: string) => (str || "").replace(/\*\*/g, "").replace(/^"|"$/g, "").trim();
 
