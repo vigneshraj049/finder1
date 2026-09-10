@@ -663,6 +663,32 @@ High-resolution 8k, professional Indian real-estate marketing agency advertiseme
     // Clean up visualPrompt by removing newlines and carriage returns to prevent Cloudflare/WAF CRLF blocking (404/403)
     visualPrompt = visualPrompt.replace(/[\r\n]+/g, " ").trim();
 
+    if (mode === "full_poster" && process.env.OPENAI_API_KEY) {
+      try {
+        console.log(`[OpenAI DALL-E 3] Generating 100% AI poster image with DALL-E 3...`);
+        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+        const imageResponse = await openai.images.generate({
+          model: "dall-e-3",
+          prompt: visualPrompt,
+          n: 1,
+          size: "1024x1792",
+          response_format: "b64_json",
+        });
+
+        const b64 = imageResponse.data?.[0]?.b64_json;
+        if (b64) {
+          return res.json({
+            success: true,
+            dataUrl: `data:image/png;base64,${b64}`,
+            designPlan,
+            visualPrompt,
+          });
+        }
+      } catch (dalleErr: any) {
+        console.warn(`[OpenAI DALL-E 3] Failed, falling back to Pollinations AI: ${dalleErr.message}`);
+      }
+    }
+
     const url = `https://image.pollinations.ai/p/${encodeURIComponent(visualPrompt)}?width=1080&height=1350&nologo=true&model=flux`;
     console.log(`[Pollinations AI] Generating dynamic poster...`);
 
