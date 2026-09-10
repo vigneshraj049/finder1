@@ -36,22 +36,61 @@ const ensureSchemaColumns = async () => {
         ADD COLUMN IF NOT EXISTS instagram_draft_image_url TEXT;
     `);
 
-    // Ensure only Trichy and Thanjavur are active locations in the locations table
-    await pool.query(`
-      INSERT INTO locations (name, state, country)
-      VALUES 
-        ('Trichy', 'Tamil Nadu', 'India'),
-        ('Thanjavur', 'Tamil Nadu', 'India')
-      ON CONFLICT (name, state, country) DO NOTHING;
-    `);
+    // Seed all 38 Tamil Nadu districts + popular aliases into locations table and activate them
+    const tnDistricts = [
+      "Ariyalur",
+      "Chengalpattu",
+      "Chennai",
+      "Coimbatore",
+      "Cuddalore",
+      "Dharmapuri",
+      "Dindigul",
+      "Erode",
+      "Kallakurichi",
+      "Kanchipuram",
+      "Kanyakumari",
+      "Karur",
+      "Krishnagiri",
+      "Madurai",
+      "Mayiladuthurai",
+      "Nagapattinam",
+      "Namakkal",
+      "Nilgiris",
+      "Perambalur",
+      "Pudukkottai",
+      "Ramanathapuram",
+      "Ranipet",
+      "Salem",
+      "Sivaganga",
+      "Tenkasi",
+      "Thanjavur",
+      "Tanjore",
+      "Theni",
+      "Thoothukudi",
+      "Tiruchirappalli",
+      "Trichy",
+      "Tirunelveli",
+      "Tirupathur",
+      "Tiruppur",
+      "Tiruvallur",
+      "Tiruvannamalai",
+      "Tiruvarur",
+      "Vellore",
+      "Viluppuram",
+      "Virudhunagar",
+    ];
 
-    await pool.query(`
-      UPDATE locations 
-      SET status = CASE 
-        WHEN name IN ('Trichy', 'Thanjavur') THEN 'ACTIVE' 
-        ELSE 'INACTIVE' 
-      END;
-    `);
+    for (const dist of tnDistricts) {
+      await pool.query(
+        `INSERT INTO locations (name, state, country, status)
+         VALUES ($1, 'Tamil Nadu', 'India', 'ACTIVE')
+         ON CONFLICT (name, state, country) DO UPDATE SET status = 'ACTIVE'`,
+        [dist]
+      );
+    }
+
+    // Ensure all TN districts are active
+    await pool.query(`UPDATE locations SET status = 'ACTIVE'`);
 
     // Ensure uploads directory exists
     const uploadsDir = path.join(__dirname, "../uploads");
@@ -59,7 +98,7 @@ const ensureSchemaColumns = async () => {
       fs.mkdirSync(uploadsDir, { recursive: true });
     }
 
-    console.log("Database schema check complete: Only Trichy and Thanjavur locations active.");
+    console.log("Database schema check complete: All 38 Tamil Nadu districts active.");
   } catch (error) {
     console.error("Unable to ensure required database schema columns:", error);
   }
