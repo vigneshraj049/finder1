@@ -165,22 +165,14 @@ const drawImage2MarketingFlyer = (
   designPlan: any,
   includeImage: boolean,
   bgImg?: HTMLImageElement | null,
-  masterTemplateImg?: HTMLImageElement | null
+  masterTemplateImg?: HTMLImageElement | null,
+  customImages?: string[]
 ) => {
   const cleanText = (str: string) => (str || "").replace(/\*\*/g, "").replace(/^"|"$/g, "").trim();
 
-  const theme = {
-    primaryBg: "#064e3b",
-    cardBg: "#ffffff",
-    textPrimary: "#0f172a",
-    textSecondary: "#ca8a04",
-    accentColor: "#f59e0b",
-    borderGold: "#d97706",
-  };
-
   const highlights = extractFlyerHighlights(formValues.description, formValues.title, designPlan, formValues.budget);
 
-  // ── 1. DRAW MASTER REFERENCE TEMPLATE BACKGROUND ──
+  // ── 1. DRAW MASTER REFERENCE TEMPLATE BACKGROUND (1080 x 1350) ──
   if (masterTemplateImg && masterTemplateImg.complete && masterTemplateImg.naturalWidth > 0) {
     ctx.drawImage(masterTemplateImg, 0, 0, 1080, 1350);
   } else {
@@ -189,62 +181,63 @@ const drawImage2MarketingFlyer = (
     ctx.fillRect(0, 0, 1080, 1350);
   }
 
-  // ── 2. HERO CUSTOM PROPERTY PHOTO OVERLAY (If user uploaded/selected custom photo) ──
-  if (includeImage && img && img.complete && img.naturalWidth > 0 && !img.src.includes("unsplash.com") && !img.src.includes("brand_welcome")) {
+  // ── 2. HERO CUSTOM PROPERTY PHOTO OVERLAY (Only if user uploaded a custom clean photo) ──
+  // Scraped listing images are not overlaid automatically to prevent text/badge clutter over template photo
+  if (includeImage && customImages && customImages.length > 0 && img && img.complete && img.naturalWidth > 0) {
     ctx.save();
     ctx.beginPath();
-    ctx.roundRect(40, 360, 1000, 310, 12);
+    ctx.roundRect(0, 330, 1080, 310, 0);
     ctx.clip();
-    canvasDrawImageCover(ctx, img, 40, 360, 1000, 310);
+    canvasDrawImageCover(ctx, img, 0, 330, 1080, 310);
     ctx.restore();
   }
 
-  // ── 3. TOP DARK GREEN TITLE BOX (y: 110–190) ──
+  // ── 3. TOP DARK GREEN TITLE BOX (y: 125) ──
   let mainTitle = formValues.title.trim().toUpperCase();
   if (!mainTitle || mainTitle === "HOUSE" || mainTitle === "LAND") {
     mainTitle = `${formValues.category.toUpperCase()} FOR ${formValues.listingType.toUpperCase()}`;
   }
   ctx.fillStyle = "#ffffff";
-  ctx.font = mainTitle.length > 28 ? "900 30px sans-serif" : "900 36px sans-serif";
+  ctx.font = mainTitle.length > 28 ? "900 28px sans-serif" : "900 32px sans-serif";
   ctx.textAlign = "left";
-  ctx.fillText(mainTitle.length > 32 ? mainTitle.slice(0, 30) + "…" : mainTitle, 65, 160);
+  ctx.fillText(mainTitle.length > 30 ? mainTitle.slice(0, 28) + "…" : mainTitle, 65, 125);
 
-  // ── 4. TOP GOLD BUSINESS NAME BOX (y: 200–260) ──
+  // ── 4. TOP GOLD BUSINESS NAME BOX (y: 230) ──
   const bizName = (formValues.businessName || "Sri Vignesh REAL ESTATES").toUpperCase();
   ctx.fillStyle = "#064e3b";
-  ctx.font = bizName.length > 24 ? "bold 22px sans-serif" : "bold 26px sans-serif";
+  ctx.font = bizName.length > 24 ? "bold 22px sans-serif" : "bold 24px sans-serif";
   ctx.textAlign = "left";
-  ctx.fillText(bizName.length > 28 ? bizName.slice(0, 26) + "…" : bizName, 65, 240);
+  ctx.fillText(bizName.length > 28 ? bizName.slice(0, 26) + "…" : bizName, 65, 230);
 
-  // ── 5. WHITE PILL LOCATION BOX (y: 275–335) ──
+  // ── 5. WHITE PILL LOCATION BOX (y: 302) ──
   const locStr = cleanText(formValues.address) || "Shanmuga Nagar, Trichy";
   ctx.fillStyle = "#064e3b";
-  ctx.font = "bold 24px sans-serif";
+  ctx.font = "bold 22px sans-serif";
   ctx.textAlign = "left";
-  ctx.fillText(locStr.length > 40 ? locStr.slice(0, 38) + "…" : locStr, 135, 312);
+  ctx.fillText(locStr.length > 40 ? locStr.slice(0, 38) + "…" : locStr, 135, 302);
 
-  // ── 6. 5-CARD KEY DETAILS ROW (y: 575–625) ──
+  // ── 6. 5-CARD KEY DETAILS ROW (y: 765) ──
   const sqftVal = highlights.find(h => /SQ\.?FT|SQFT|சதுர/i.test(h)) || "1200 Sq.ft";
   const priceVal = formValues.budget || "₹ 24 Lakhs";
   const typeVal = formValues.category || "Residential Plot";
 
   const cardsData = [
-    { val: sqftVal, cX: 135 },
+    { val: sqftVal, cX: 125 },
     { val: priceVal, cX: 325 },
-    { val: "30 Feet", cX: 515 },
-    { val: "DTCP Approved", cX: 705 },
-    { val: typeVal, cX: 895 },
+    { val: "30 Feet", cX: 525 },
+    { val: "DTCP Approved", cX: 725 },
+    { val: typeVal, cX: 925 },
   ];
 
   cardsData.forEach((c) => {
     ctx.fillStyle = "#064e3b";
-    ctx.font = "bold 17px sans-serif";
+    ctx.font = "bold 16px sans-serif";
     ctx.textAlign = "center";
     const displayVal = c.val.length > 14 ? c.val.slice(0, 12) + "…" : c.val;
-    ctx.fillText(displayVal, c.cX, 608);
+    ctx.fillText(displayVal, c.cX, 765);
   });
 
-  // ── 7. HIGHLIGHTS 6 CHECKMARK BULLETS BOX (y: 690–810) ──
+  // ── 7. HIGHLIGHTS 6 CHECKMARK BULLETS BOX (y: 865, 925, 985) ──
   const bulletItems = [
     "Prime Residential Area",
     "Near Schools & Colleges",
@@ -257,27 +250,28 @@ const drawImage2MarketingFlyer = (
   bulletItems.forEach((bText, idx) => {
     const col = idx % 2;
     const row = Math.floor(idx / 2);
-    const bX = 115 + col * 310;
-    const bY = 712 + row * 40;
+    const bX = col === 0 ? 115 : 440;
+    const bY = 865 + row * 60;
 
-    ctx.fillStyle = "#1e293b";
-    ctx.font = "bold 16px sans-serif";
+    ctx.fillStyle = "#064e3b";
+    ctx.font = "bold 17px sans-serif";
     ctx.textAlign = "left";
     ctx.fillText(bText, bX, bY);
   });
 
-  // ── 8. GOLD PHONE BANNER (x: 140–420, y: 840–920) ──
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "900 26px sans-serif";
+  // ── 8. GOLD PHONE BANNER (y: 1092) ──
+  ctx.fillStyle = "#064e3b";
+  ctx.font = "900 28px sans-serif";
   ctx.textAlign = "left";
-  ctx.fillText(formValues.phone || "+91 99521 31813", 140, 878);
+  ctx.fillText(formValues.phone || "+91 99521 31813", 135, 1092);
 
-  // ── 9. BOTTOM FOOTER BAR (y: 1315) ──
+  // ── 9. BOTTOM FOOTER BAR (y: 1255) ──
   const igHandle = formValues.instagramUsername ? `@${formValues.instagramUsername.replace(/^@/, "")}` : formValues.businessName;
   ctx.fillStyle = "#ffffff";
-  ctx.font = "bold 16px sans-serif";
-  ctx.textAlign = "center";
-  ctx.fillText(`📍 ${locStr}   |   📱 ${igHandle}`, 540, 1318);
+  ctx.font = "bold 17px sans-serif";
+  ctx.textAlign = "left";
+  ctx.fillText(locStr.length > 30 ? locStr.slice(0, 28) + "…" : locStr, 145, 1255);
+  ctx.fillText(igHandle.length > 25 ? igHandle.slice(0, 23) + "…" : igHandle, 650, 1255);
 };
 
 function AdminImages() {
@@ -853,9 +847,9 @@ ${hashtags}`;
         }
 
         if (selectedTemplate === "full_ai_poster") {
-          drawImage2MarketingFlyer(ctx, img, formValues, activeDesignPlan, includeImage, bgImg, masterTemplateImg);
+          drawImage2MarketingFlyer(ctx, img, formValues, activeDesignPlan, includeImage, bgImg, masterTemplateImg, customImages);
         } else {
-          drawImage2MarketingFlyer(ctx, img, formValues, activeDesignPlan, includeImage, null, masterTemplateImg);
+          drawImage2MarketingFlyer(ctx, img, formValues, activeDesignPlan, includeImage, null, masterTemplateImg, customImages);
         }
       } else if (selectedTemplate === "dark_luxury") {
         // Dark theme background
